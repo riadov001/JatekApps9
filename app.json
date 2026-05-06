@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "43945852-886c-4247-ad5d-136073d50a9f"
+      }
+    },
+    "android": {
+      "package": "ma.jatek.app"
+    },
+    "ios": {
+      "bundleIdentifier": "ma.jatek.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}
