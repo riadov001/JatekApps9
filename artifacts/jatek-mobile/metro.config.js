@@ -15,9 +15,11 @@ const ignoredDirs = [
   path.resolve(workspaceRoot, "dist"),
   path.resolve(workspaceRoot, "build"),
 ];
-config.resolver.blockList = ignoredDirs.map(
-  (d) => new RegExp(`^${escapeRegExp(d)}(/.*)?$`),
-);
+config.resolver.blockList = [
+  ...ignoredDirs.map((d) => new RegExp(`^${escapeRegExp(d)}(/.*)?$`)),
+  // Exclude Expo postinstall temp dirs that pnpm creates then removes
+  /_tmp_\d+/,
+];
 
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, "node_modules"),
