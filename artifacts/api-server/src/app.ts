@@ -123,12 +123,11 @@ app.use("/api", attachAuth);
 app.use("/api", router);
 
 // ─── Production static file serving ──────────────────────────────────────────
-// In production the API server also serves the built web apps:
+// In production the API server serves:
 //   /admin/* → backend-dashboard (built to artifacts/backend-dashboard/dist/public)
-//   /*        → food-delivery    (built to artifacts/food-delivery/dist/public)
+//   /        → redirect to /admin/  (no customer web SPA; app is mobile-only)
 if (process.env.NODE_ENV === "production") {
   const dashboardDir = path.resolve(__dirname, "../../backend-dashboard/dist/public");
-  const webDir = path.resolve(__dirname, "../../food-delivery/dist/public");
 
   if (existsSync(dashboardDir)) {
     app.use("/admin", express.static(dashboardDir, { index: "index.html" }));
@@ -141,16 +140,8 @@ if (process.env.NODE_ENV === "production") {
     logger.warn("backend-dashboard/dist/public not found — run pnpm build first");
   }
 
-  if (existsSync(webDir)) {
-    app.use("/", express.static(webDir, { index: "index.html" }));
-    // SPA fallback for all non-API routes
-    app.get("/*splat", (_req, res) => {
-      res.sendFile(path.join(webDir, "index.html"));
-    });
-    logger.info("Serving food-delivery static files from " + webDir);
-  } else {
-    logger.warn("food-delivery/dist/public not found — run pnpm build first");
-  }
+  // Root redirect — no customer web SPA; direct visitors to the admin panel.
+  app.get("/", (_req, res) => res.redirect(301, "/admin/"));
 } else {
   app.use((req, res) => {
     res.status(404).json({ error: "Not found", path: req.path });

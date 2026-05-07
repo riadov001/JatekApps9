@@ -3,15 +3,13 @@
 #
 # Boots artifacts/api-server/dist/index.mjs in NODE_ENV=production on a random
 # free port, waits for the "Server listening" log, then curls the routes the
-# deployment relies on (root SPA, /admin SPA, API health). Any non-200 or a
-# server crash on startup fails the script with a clear error so broken
-# production builds (e.g. the Express 5 wildcard PathError) are caught before
-# they ship.
+# deployment relies on (/admin SPA, API health). Any non-200 or a server crash
+# on startup fails the script with a clear error so broken production builds
+# are caught before they ship.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVER_ENTRY="$ROOT_DIR/artifacts/api-server/dist/index.mjs"
-WEB_INDEX="$ROOT_DIR/artifacts/food-delivery/dist/public/index.html"
 ADMIN_INDEX="$ROOT_DIR/artifacts/backend-dashboard/dist/public/index.html"
 
 fail() {
@@ -20,7 +18,6 @@ fail() {
 }
 
 [ -f "$SERVER_ENTRY" ]  || fail "missing $SERVER_ENTRY — run scripts/build-production.sh first"
-[ -f "$WEB_INDEX" ]     || fail "missing $WEB_INDEX — food-delivery build did not produce dist/public/index.html"
 [ -f "$ADMIN_INDEX" ]   || fail "missing $ADMIN_INDEX — backend-dashboard build did not produce dist/public/index.html"
 
 # Pick a free random port (high range to avoid collisions with running dev workflows).
@@ -95,7 +92,6 @@ check() {
 }
 
 echo "[smoke] Probing routes…"
-check "/"
 check "/admin/"
 check "/api/healthz"
 check "/health"
