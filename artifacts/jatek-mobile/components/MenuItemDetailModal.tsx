@@ -20,6 +20,7 @@ interface Props {
   visible: boolean;
   item: MenuItem | null;
   initialQty?: number;
+  restaurantOpen?: boolean;
   onClose: () => void;
   onAdd: (selection: {
     qty: number;
@@ -48,7 +49,7 @@ const DEFAULT_TAGS = [
   { label: "Halal", color: "#7B61FF", emoji: "🥩" },
 ];
 
-export function MenuItemDetailModal({ visible, item, initialQty = 0, onClose, onAdd }: Props) {
+export function MenuItemDetailModal({ visible, item, initialQty = 0, restaurantOpen = true, onClose, onAdd }: Props) {
   const colors = useColors();
   const [qty, setQty] = useState(Math.max(1, initialQty));
   const [size, setSize] = useState<"S" | "M" | "L">("M");
@@ -253,26 +254,38 @@ export function MenuItemDetailModal({ visible, item, initialQty = 0, onClose, on
 
           {/* Bottom action bar */}
           <View style={[styles.bottomBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
-            <View style={[styles.qtyBox, { backgroundColor: colors.muted }]}>
-              <TouchableOpacity onPress={dec} hitSlop={6} style={styles.qtyBtn}>
-                <Ionicons name="remove" size={20} color={colors.heading} />
-              </TouchableOpacity>
-              <Text style={[styles.qtyVal, { color: colors.heading }]}>{qty}</Text>
-              <TouchableOpacity onPress={inc} hitSlop={6} style={styles.qtyBtn}>
-                <Ionicons name="add" size={20} color={colors.heading} />
-              </TouchableOpacity>
-            </View>
+            {restaurantOpen ? (
+              <>
+                <View style={[styles.qtyBox, { backgroundColor: colors.muted }]}>
+                  <TouchableOpacity onPress={dec} hitSlop={6} style={styles.qtyBtn}>
+                    <Ionicons name="remove" size={20} color={colors.heading} />
+                  </TouchableOpacity>
+                  <Text style={[styles.qtyVal, { color: colors.heading }]}>{qty}</Text>
+                  <TouchableOpacity onPress={inc} hitSlop={6} style={styles.qtyBtn}>
+                    <Ionicons name="add" size={20} color={colors.heading} />
+                  </TouchableOpacity>
+                </View>
 
-            <Animated.View style={{ flex: 1, transform: [{ scale: addPulse }] }}>
-              <TouchableOpacity
-                onPress={handleAdd}
-                activeOpacity={0.85}
-                style={[styles.addBtn, { backgroundColor: colors.primary }]}
-              >
-                <Text style={styles.addBtnText}>Ajouter au panier</Text>
-                <Text style={styles.addBtnPrice}>{total.toFixed(0)} MAD</Text>
-              </TouchableOpacity>
-            </Animated.View>
+                <Animated.View style={{ flex: 1, transform: [{ scale: addPulse }] }}>
+                  <TouchableOpacity
+                    onPress={handleAdd}
+                    activeOpacity={0.85}
+                    style={[styles.addBtn, { backgroundColor: colors.primary }]}
+                  >
+                    <Text style={styles.addBtnText}>Ajouter au panier</Text>
+                    <Text style={styles.addBtnPrice}>{total.toFixed(0)} MAD</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              </>
+            ) : (
+              <View style={styles.closedBar}>
+                <Ionicons name="lock-closed-outline" size={18} color="#6B7280" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.closedBarTitle}>Restaurant fermé</Text>
+                  <Text style={styles.closedBarSub}>Commandes indisponibles pour le moment</Text>
+                </View>
+              </View>
+            )}
           </View>
         </ReAnimated.View>
       </ReAnimated.View>
@@ -436,4 +449,17 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold" },
   addBtnPrice: { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold", opacity: 0.95 },
+
+  closedBar: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  closedBarTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#374151" },
+  closedBarSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#6B7280", marginTop: 1 },
 });

@@ -218,6 +218,21 @@ export default function RestaurantScreen() {
         </View>
       </View>
 
+      {/* Closed banner */}
+      {!isOpen && (
+        <View style={[styles.closedBanner]}>
+          <View style={styles.closedBannerInner}>
+            <Ionicons name="moon-outline" size={20} color="#fff" />
+            <View style={styles.closedBannerText}>
+              <Text style={styles.closedBannerTitle}>Restaurant fermé</Text>
+              <Text style={styles.closedBannerSub}>
+                Les commandes ne sont pas disponibles pour le moment. Revenez plus tard !
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* Cart-conflict warning */}
       {cartRestaurantId && cartRestaurantId !== restaurantId && (
         <View style={[styles.warningBanner, { backgroundColor: "#FEF3C7", borderColor: "#FDE68A" }]}>
@@ -290,8 +305,10 @@ export default function RestaurantScreen() {
             item={item}
             quantity={getQty(item.id)}
             width={COL_W}
+            restaurantOpen={isOpen}
             onPressCard={() => setSelectedItem(item)}
             onAdd={() => {
+              if (!isOpen) return;
               const pricing = restaurant as { deliveryFee?: number | null; freeDeliveryThreshold?: number | null };
               addItem(restaurantId, restaurant.name, { cartLineId: String(item.id), menuItemId: item.id, name: item.name, price: item.price, imageUrl: item.imageUrl }, { deliveryFee: pricing.deliveryFee, freeDeliveryThreshold: pricing.freeDeliveryThreshold });
             }}
@@ -480,14 +497,15 @@ export default function RestaurantScreen() {
         visible={!!selectedItem}
         item={selectedItem}
         initialQty={selectedItem ? getQty(selectedItem.id) : 0}
+        restaurantOpen={isOpen}
         onClose={() => setSelectedItem(null)}
         onAdd={({ qty, unitPrice, displayName, cartLineId }) => {
-          if (!selectedItem) return;
+          if (!selectedItem || !isOpen) return;
           const pricing = restaurant as { deliveryFee?: number | null; freeDeliveryThreshold?: number | null };
           for (let i = 0; i < qty; i++) {
             addItem(restaurantId, restaurant.name, {
               cartLineId,
-              menuItemId: selectedItem.id, // REAL DB id — required by API
+              menuItemId: selectedItem.id,
               name: displayName,
               price: unitPrice,
               imageUrl: selectedItem.imageUrl,
@@ -585,6 +603,19 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   metaDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: "#D1D5DB" },
   openDot: { width: 6, height: 6, borderRadius: 3 },
+  closedBanner: {
+    marginHorizontal: SIDE, marginTop: 14, borderRadius: 14, overflow: "hidden",
+    backgroundColor: "#1F2937",
+    shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4,
+  },
+  closedBannerInner: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
+  },
+  closedBannerText: { flex: 1 },
+  closedBannerTitle: { fontSize: 15, fontFamily: "Inter_700Bold", color: "#fff" },
+  closedBannerSub: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#D1D5DB", marginTop: 2 },
+
   warningBanner: {
     marginHorizontal: SIDE, marginTop: 14, padding: 10, borderRadius: 10, borderWidth: 1,
     flexDirection: "row", alignItems: "center", gap: 8,
