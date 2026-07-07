@@ -8,9 +8,10 @@
  *  - Exponential-backoff reconnection on transient network errors (1s → 30s)
  *  - 60s read timeout heartbeat so we re-open if the proxy silently drops us
  *  - Falls back gracefully (no error) on platforms without streaming support
+ *  - AppState-aware: disconnects when app backgrounds, reconnects on foreground
  */
 import { useEffect, useRef } from "react";
-import { Platform } from "react-native";
+import { AppState, AppStateStatus, Platform } from "react-native";
 
 type EventHandler = (data: unknown) => void;
 
@@ -40,16 +41,24 @@ export function useSSE({ url, events, enabled = true }: SSEOptions) {
     let backoff = INITIAL_BACKOFF_MS;
     let currentController: AbortController | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    // Track whether the app is in the foreground
+    let isActive = AppState.currentState === "active";
 
     const scheduleReconnect = () => {
-      if (cancelled) return;
+      if (cancelled || !isActive) return;
       const delay = backoff;
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
       reconnectTimer = setTimeout(connect, delay);
     };
 
+    const disconnect = () => {
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+      currentController?.abort();
+      currentController = null;
+    };
+
     async function connect() {
-      if (cancelled) return;
+      if (cancelled || !isActive) return;
       const controller = new AbortController();
       currentController = controller;
 
@@ -84,7 +93,7 @@ export function useSSE({ url, events, enabled = true }: SSEOptions) {
         let buffer = "";
         let currentEvent = "message";
 
-        while (!cancelled) {
+        while (!cancelled && isActive) {
           const { done, value } = await reader.read();
           if (done) break;
           lastReadAt = Date.now();
@@ -112,13 +121,15 @@ export function useSSE({ url, events, enabled = true }: SSEOptions) {
           }
         }
         // Clean EOF — try to reconnect with reset backoff
-        if (!cancelled) scheduleReconnect();
+        if (!cancelled && isActive) scheduleReconnect();
       } catch (err: any) {
         if (cancelled) return;
-        // AbortError from cleanup is silent; everything else schedules retry
-        if (err?.name !== "AbortError") {
-          // Network blip — silently retry
+        // AbortError from cleanup or backgrounding — no retry needed
+        if (err?.name === "AbortError") {
+          if (!cancelled && isActive) scheduleReconnect();
+          return;
         }
+        // Network blip — silently retry
         scheduleReconnect();
       } finally {
         clearInterval(watchdog);
@@ -126,12 +137,28 @@ export function useSSE({ url, events, enabled = true }: SSEOptions) {
       }
     }
 
+    // Handle app going to background / coming back to foreground
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      const nowActive = nextState === "active";
+      if (nowActive && !isActive) {
+        // Came to foreground — reconnect immediately with reset backoff
+        isActive = true;
+        backoff = INITIAL_BACKOFF_MS;
+        connect();
+      } else if (!nowActive && isActive) {
+        // Went to background — disconnect to save battery & data
+        isActive = false;
+        disconnect();
+      }
+    };
+
+    const subscription = AppState.addEventListener("change", handleAppStateChange);
     connect();
 
     return () => {
       cancelled = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      currentController?.abort();
+      subscription.remove();
+      disconnect();
     };
   }, [url, enabled]);
 }
