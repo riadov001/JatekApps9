@@ -25,7 +25,7 @@
     },
     "android": {
       "package": "ma.jatek.app",
-      "versionCode": 9,
+      "versionCode": 10,
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
@@ -61,9 +61,10 @@
     },
     "extra": {
       "eas": {
-        "projectId": "24f32081-ec5b-4040-9694-24e08de7e7c7"
-      }
+        "projectId": "2437ecfc-9682-4b07-9eaa-77f6206b4714"
+      },
+      "projectId": "2437ecfc-9682-4b07-9eaa-77f6206b4714"
     },
-    "owner": "myjantes"
+    "owner": "myjantesmob"
   }
 }

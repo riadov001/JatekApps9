@@ -237,6 +237,7 @@ export default function CartScreen() {
                   <TouchableOpacity
                     onPress={() => updateQuantity(item.cartLineId, item.quantity - 1)}
                     style={[styles.qtyBtn, styles.qtyBtnSoft]}
+                    activeOpacity={0.6}
                   >
                     <Ionicons
                       name={item.quantity === 1 ? "trash-outline" : "remove"}

@@ -355,6 +355,7 @@ export function CartPreviewSheet({ visible, onClose }: Props) {
                         }
                         style={styles.qtyBtn}
                         hitSlop={6}
+                        activeOpacity={0.6}
                         accessibilityLabel="Diminuer la quantité"
                       >
                         <Ionicons

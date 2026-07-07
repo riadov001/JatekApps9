@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Alert } from "react-native";
 import { CouponDef, validateCoupon, computeDiscount } from "@/lib/coupons";
 
 export interface CartItem {
@@ -166,11 +167,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addItem = useCallback((rId: number, rName: string, item: Omit<CartItem, "quantity">, pricing?: RestaurantPricing) => {
     setRestaurantId((prevId) => {
       if (prevId && prevId !== rId) {
-        // Switched restaurant — replace the cart with the new line.
-        setItems([{ ...item, quantity: 1 }]);
-        setRestaurantName(rName);
-        applyPricing(pricing);
-        return rId;
+        // Switched restaurant — ask user before wiping the existing cart.
+        Alert.alert(
+          "Nouveau restaurant",
+          "Votre panier contient des articles d'un autre restaurant. Vider le panier et continuer ?",
+          [
+            { text: "Annuler", style: "cancel" },
+            {
+              text: "Vider et continuer",
+              style: "destructive",
+              onPress: () => {
+                setItems([{ ...item, quantity: 1 }]);
+                setRestaurantName(rName);
+                applyPricing(pricing);
+                setRestaurantId(rId);
+              },
+            },
+          ],
+        );
+        return prevId; // keep current until user confirms
       }
       setRestaurantName(rName);
       applyPricing(pricing);

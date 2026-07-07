@@ -98,6 +98,7 @@ externalPort = 5173
   [userenv]
 
   [userenv.shared]
+EXPO_PUBLIC_PROJECT_ID = "2437ecfc-9682-4b07-9eaa-77f6206b4714"
 
   [userenv.development]
   INFOBIP_WA_SENDER = "+15072600620"

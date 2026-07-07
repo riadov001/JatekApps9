@@ -12,6 +12,7 @@
  */
 import { useEffect, useRef } from "react";
 import { AppState, AppStateStatus, Platform } from "react-native";
+import { getAuthToken } from "@/lib/api";
 
 type EventHandler = (data: unknown) => void;
 
@@ -72,9 +73,13 @@ export function useSSE({ url, events, enabled = true }: SSEOptions) {
       }, 10_000);
 
       try {
+        const token = await getAuthToken();
         const res = await fetch(url, {
           signal: controller.signal,
-          headers: { Accept: "text/event-stream" },
+          headers: {
+            Accept: "text/event-stream",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
         });
 
         if (!res.ok) {
