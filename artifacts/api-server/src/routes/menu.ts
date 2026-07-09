@@ -164,8 +164,17 @@ router.delete("/menu/:id", requireRole("admin", "restaurant_owner"), async (req:
     }
   }
 
-  await db.delete(menuItemsTable).where(eq(menuItemsTable.id, params.data.id));
-  res.sendStatus(204);
+  try {
+    await db.delete(menuItemsTable).where(eq(menuItemsTable.id, params.data.id));
+    res.sendStatus(204);
+  } catch (err: any) {
+    // PostgreSQL FK violation: menu item is referenced by order_items
+    if (err?.code === "23503") {
+      res.status(409).json({ error: "Cannot delete menu item: it is referenced by existing orders. Mark it unavailable instead." });
+      return;
+    }
+    throw err;
+  }
 });
 
 export default router;

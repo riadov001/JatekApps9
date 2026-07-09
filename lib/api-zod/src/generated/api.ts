@@ -1446,6 +1446,10 @@ export const CreateOrderBody = zod.object({
     zod.object({
       menuItemId: zod.number(),
       quantity: zod.number(),
+      /** Optional selected size id (must belong to the menu item). */
+      selectedSizeId: zod.number().optional(),
+      /** Optional selected extra ids (must belong to the menu item). */
+      selectedExtraIds: zod.array(zod.number()).optional(),
     }),
   ),
 });
@@ -2095,6 +2099,7 @@ export const UpdateRestaurantBody = zod.object({
   deliveryFee: zod.number().optional(),
   minimumOrder: zod.number().optional(),
   isVerified: zod.boolean().optional(),
+  ownerId: zod.number().optional(),
 });
 
 export const UpdateRestaurantResponse = zod.object({

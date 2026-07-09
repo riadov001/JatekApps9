@@ -13,6 +13,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { MenuItemGridCard } from "@/components/MenuItemGridCard";
 import { MenuItemDetailModal } from "@/components/MenuItemDetailModal";
+import type { MenuItemSize, MenuItemExtra } from "@/lib/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { listFavorites, addFavorite, removeFavorite, geocodeAddress } from "@/lib/api";
 import { useT } from "@/contexts/LanguageContext";
@@ -499,7 +500,7 @@ export default function RestaurantScreen() {
         initialQty={selectedItem ? getQty(selectedItem.id) : 0}
         restaurantOpen={isOpen}
         onClose={() => setSelectedItem(null)}
-        onAdd={({ qty, unitPrice, displayName, cartLineId }) => {
+        onAdd={({ qty, selectedSize, selectedSizeId, selectedExtras, selectedExtraIds, unitPrice, displayName, cartLineId }) => {
           if (!selectedItem || !isOpen) return;
           const pricing = restaurant as { deliveryFee?: number | null; freeDeliveryThreshold?: number | null };
           for (let i = 0; i < qty; i++) {
@@ -509,6 +510,11 @@ export default function RestaurantScreen() {
               name: displayName,
               price: unitPrice,
               imageUrl: selectedItem.imageUrl,
+              selectedSize: selectedSize?.name,
+              selectedSizeId: selectedSizeId ?? undefined,
+              selectedSizePriceAdjustment: selectedSize?.priceAdjustment,
+              selectedExtras: selectedExtras.map((e) => e.name),
+              selectedExtraIds: selectedExtraIds.length ? selectedExtraIds : undefined,
             }, { deliveryFee: pricing.deliveryFee, freeDeliveryThreshold: pricing.freeDeliveryThreshold });
           }
         }}

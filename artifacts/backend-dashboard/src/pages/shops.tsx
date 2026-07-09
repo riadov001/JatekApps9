@@ -1,6 +1,8 @@
 import { useState } from "react";
 import {
   useListBackendShops,
+  useListBackendStaff,
+  useBackendMe,
   useCreateRestaurant,
   useUpdateRestaurant,
   useDeleteRestaurant,
@@ -18,21 +20,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQueryClient } from "@tanstack/react-query";
 
 const EMPTY = {
   name: "", description: "", address: "", phone: "", category: "restaurant",
   imageUrl: "", logoUrl: "", deliveryTime: "", deliveryFee: "", minimumOrder: "", isOpen: true,
+  ownerId: "",
 };
 
 export default function Shops() {
   const [search, setSearch] = useState("");
+  const { data: me } = useBackendMe();
   const { data: shops, isLoading } = useListBackendShops({ search: search || undefined });
+  const { data: staff } = useListBackendStaff();
   const create = useCreateRestaurant();
   const update = useUpdateRestaurant();
   const del = useDeleteRestaurant();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const isAdmin = me?.user.role === "admin" || me?.user.role === "super_admin";
+  const ownerCandidates = (staff || []).filter((u: any) => u.role === "restaurant_owner" || u.role === "admin" || u.role === "super_admin");
 
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
@@ -48,6 +56,7 @@ export default function Shops() {
     deliveryTime: f.deliveryTime ? Number(f.deliveryTime) : undefined,
     deliveryFee: f.deliveryFee ? Number(f.deliveryFee) : undefined,
     minimumOrder: f.minimumOrder ? Number(f.minimumOrder) : undefined,
+    ownerId: f.ownerId ? Number(f.ownerId) : undefined,
   });
 
   const handleCreate = (e: React.FormEvent) => {
@@ -66,6 +75,7 @@ export default function Shops() {
       imageUrl: s.imageUrl ?? "", logoUrl: s.logoUrl ?? "",
       deliveryTime: String(s.deliveryTime ?? ""), deliveryFee: String(s.deliveryFee ?? ""),
       minimumOrder: String(s.minimumOrder ?? ""), isOpen: !!s.isOpen,
+      ownerId: s.ownerId ? String(s.ownerId) : "",
     });
   };
 
@@ -91,7 +101,7 @@ export default function Shops() {
           <DialogTrigger asChild><Button className="gap-2"><Plus className="h-4 w-4" /> Nouvelle boutique</Button></DialogTrigger>
           <DialogContent className="sm:max-w-2xl sm:max-h-[85vh] sm:overflow-y-auto">
             <DialogHeader><DialogTitle>Créer une boutique</DialogTitle></DialogHeader>
-            <ShopForm form={form} setForm={setForm} onSubmit={handleCreate} pending={create.isPending} submitLabel="Créer" />
+            <ShopForm form={form} setForm={setForm} onSubmit={handleCreate} pending={create.isPending} submitLabel="Créer" ownerCandidates={ownerCandidates} isAdmin={isAdmin} />
           </DialogContent>
         </Dialog>
       </div>
@@ -167,6 +177,7 @@ export default function Shops() {
           {editing && (
             <ShopForm
               form={editForm} setForm={setEditForm} onSubmit={handleUpdate} pending={update.isPending} submitLabel="Enregistrer"
+              ownerCandidates={ownerCandidates} isAdmin={isAdmin}
               extra={
                 <div className="flex items-center gap-2">
                   <Switch checked={editForm.isOpen} onCheckedChange={(v) => setEditForm({ ...editForm, isOpen: v })} />
@@ -181,7 +192,7 @@ export default function Shops() {
   );
 }
 
-function ShopForm({ form, setForm, onSubmit, pending, submitLabel, extra }: any) {
+function ShopForm({ form, setForm, onSubmit, pending, submitLabel, extra, ownerCandidates, isAdmin }: any) {
   const set = (k: string, v: any) => setForm({ ...form, [k]: v });
   return (
     <form onSubmit={onSubmit} className="space-y-4 pt-4">
@@ -196,6 +207,17 @@ function ShopForm({ form, setForm, onSubmit, pending, submitLabel, extra }: any)
         <Field label="Délai livraison (min)"><Input type="number" value={form.deliveryTime} onChange={(e: any) => set("deliveryTime", e.target.value)} /></Field>
         <Field label="Frais livraison (DH)"><Input type="number" value={form.deliveryFee} onChange={(e: any) => set("deliveryFee", e.target.value)} /></Field>
         <Field label="Minimum commande (DH)"><Input type="number" value={form.minimumOrder} onChange={(e: any) => set("minimumOrder", e.target.value)} /></Field>
+        {isAdmin && (
+          <Field label="Propriétaire" full>
+            <Select value={form.ownerId || "none"} onValueChange={(v) => set("ownerId", v === "none" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="Choisir un propriétaire" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— Aucun —</SelectItem>
+                {ownerCandidates.map((u: any) => <SelectItem key={u.id} value={String(u.id)}>{u.name} ({u.email})</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
       </div>
       {extra}
       <DialogFooter className="pt-4">

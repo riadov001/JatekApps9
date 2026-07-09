@@ -1,6 +1,7 @@
 export * from "./users";
 export * from "./restaurants";
 export * from "./menuItems";
+export * from "./menuItemOptions";
 export * from "./orders";
 export * from "./drivers";
 export * from "./reviews";

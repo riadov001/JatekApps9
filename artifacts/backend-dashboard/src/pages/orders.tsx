@@ -5,7 +5,10 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 type OrderWithItems = Order & { items: Array<{ id: number; quantity: number; menuItemName: string; totalPrice: number }> };
 
 async function fetchOrderDetail(id: number): Promise<OrderWithItems> {
-  const res = await fetch(`/api/backend/orders/${id}`, { credentials: "include" });
+  const token = localStorage.getItem("jatek_backend_token");
+  const res = await fetch(`/api/backend/orders/${id}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }

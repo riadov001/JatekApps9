@@ -9,6 +9,7 @@ import {
   UserCog,
   Truck,
   Tags,
+  TicketPercent,
   Wallet,
   Bell,
   BarChart3,
@@ -58,11 +59,11 @@ const navGroups: NavGroup[] = [
   {
     label: "Operations",
     items: [
-      { href: "/orders", label: "Orders", icon: ShoppingCart },
-      { href: "/products", label: "Products", icon: Package },
-      { href: "/categories", label: "Categories", icon: Tags },
-      { href: "/shops", label: "Shops", icon: Store },
-      { href: "/reviews", label: "Reviews", icon: Star },
+      { href: "/orders", label: "Orders", icon: ShoppingCart, roles: ["super_admin", "admin", "manager", "restaurant_owner"] },
+      { href: "/products", label: "Products", icon: Package, roles: ["super_admin", "admin", "manager", "restaurant_owner"] },
+      { href: "/categories", label: "Categories", icon: Tags, roles: ["super_admin", "admin", "manager", "restaurant_owner"] },
+      { href: "/shops", label: "Shops", icon: Store, roles: ["super_admin", "admin", "manager", "restaurant_owner"] },
+      { href: "/reviews", label: "Reviews", icon: Star, roles: ["super_admin", "admin", "manager", "restaurant_owner"] },
     ],
   },
   {
@@ -77,6 +78,7 @@ const navGroups: NavGroup[] = [
     label: "Marketing",
     items: [
       { href: "/promotions", label: "Promotions", icon: Tags, roles: ["super_admin", "admin", "manager"] },
+      { href: "/vouchers", label: "Vouchers", icon: TicketPercent, roles: ["super_admin", "admin", "manager"] },
       { href: "/notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin", "manager"] },
     ],
   },

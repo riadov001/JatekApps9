@@ -166,9 +166,15 @@ router.patch("/restaurants/:id", requireRole("admin", "restaurant_owner"), async
     return;
   }
 
+  const updatePayload: any = { ...parsed.data };
+  // Only admins may reassign ownership; strip ownerId for non-admins.
+  if (req.userRole !== "admin" && req.userRole !== "super_admin") delete updatePayload.ownerId;
+  // Coerce empty string phone to null for schema consistency.
+  if (updatePayload.phone === "") updatePayload.phone = null;
+
   const [restaurant] = await db
     .update(restaurantsTable)
-    .set(parsed.data)
+    .set(updatePayload)
     .where(eq(restaurantsTable.id, params.data.id))
     .returning();
 

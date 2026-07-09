@@ -138,7 +138,7 @@ router.patch("/promo-codes/:id", requireAuth, async (req: AuthedRequest, res): P
   }
   const id = parseInt(String(req.params.id), 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
-  const allowed = ["description", "type", "value", "minOrderAmount", "maxUses", "maxUsesPerUser", "firstOrderOnly", "isActive", "expiresAt"];
+  const allowed = ["code", "description", "type", "value", "minOrderAmount", "maxUses", "maxUsesPerUser", "firstOrderOnly", "isActive", "expiresAt", "restaurantId"];
   const updates: Record<string, unknown> = {};
   for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];
   const [promo] = await db.update(promoCodesTable).set(updates).where(eq(promoCodesTable.id, id)).returning();

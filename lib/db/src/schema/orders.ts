@@ -51,6 +51,12 @@ export const orderItemsTable = pgTable("order_items", {
   quantity: integer("quantity").notNull(),
   unitPrice: real("unit_price").notNull(),
   totalPrice: real("total_price").notNull(),
+  /** Selected size label, e.g. "Large" */
+  selectedSize: text("selected_size"),
+  /** Price adjustment for the selected size */
+  selectedSizePriceAdjustment: real("selected_size_price_adjustment"),
+  /** JSON array of selected extra labels, e.g. ["Fromage extra"] */
+  selectedExtras: text("selected_extras"),
 });
 
 export const insertOrderSchema = createInsertSchema(ordersTable).omit({ id: true, createdAt: true, updatedAt: true });

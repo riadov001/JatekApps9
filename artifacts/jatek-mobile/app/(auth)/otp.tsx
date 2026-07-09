@@ -9,6 +9,7 @@ import * as Haptics from "expo-haptics";
 import { useVerifyOtp, useSendOtp } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
+import { getApiBaseSafe } from "@/lib/apiBase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useT } from "@/contexts/LanguageContext";
 
@@ -100,8 +101,7 @@ export default function OtpScreen() {
   const handleSaveName = async () => {
     if (!pendingToken || !pendingUser) return;
     try {
-      const domain = process.env.EXPO_PUBLIC_DOMAIN;
-      const baseUrl = domain ? `https://${domain}` : "";
+      const baseUrl = getApiBaseSafe();
       const res = await fetch(`${baseUrl}/api/auth/update-name`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${pendingToken}` },

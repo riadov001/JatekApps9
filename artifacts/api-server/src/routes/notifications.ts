@@ -18,6 +18,17 @@ router.get("/notifications", requireAuth, async (req: AuthedRequest, res): Promi
   res.json({ notifications, unreadCount });
 });
 
+/** Mark all my notifications as read — must be registered BEFORE /:id/read
+ *  so Express doesn't swallow "read-all" as a numeric id parameter. */
+router.patch("/notifications/read-all", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  await db
+    .update(notificationsTable)
+    .set({ readAt: new Date() })
+    .where(and(eq(notificationsTable.userId, req.userId!), isNull(notificationsTable.readAt)));
+
+  res.json({ success: true });
+});
+
 /** Mark a notification as read */
 router.patch("/notifications/:id/read", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const id = parseInt(String(req.params.id), 10);
@@ -31,16 +42,6 @@ router.patch("/notifications/:id/read", requireAuth, async (req: AuthedRequest, 
 
   if (!notif) { res.status(404).json({ error: "Notification not found" }); return; }
   res.json(notif);
-});
-
-/** Mark all my notifications as read */
-router.patch("/notifications/read-all", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
-  await db
-    .update(notificationsTable)
-    .set({ readAt: new Date() })
-    .where(and(eq(notificationsTable.userId, req.userId!), isNull(notificationsTable.readAt)));
-
-  res.json({ success: true });
 });
 
 /** Delete a notification */

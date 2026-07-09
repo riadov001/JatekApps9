@@ -1,12 +1,26 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal, StyleSheet, Text, View, TouchableOpacity, Image,
-  ScrollView, Pressable, Platform, Animated, Easing,
+  ScrollView, Pressable, Platform, Animated, Easing, ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import ReAnimated, { FadeIn, SlideInDown } from "react-native-reanimated";
 import { useColors } from "@/hooks/useColors";
+import { listMenuItemSizes, listMenuItemExtras } from "@/lib/api";
+
+interface MenuItemSize {
+  id: number;
+  name: string;
+  priceAdjustment: number;
+  isAvailable: boolean;
+}
+interface MenuItemExtra {
+  id: number;
+  name: string;
+  price: number;
+  isAvailable: boolean;
+}
 
 interface MenuItem {
   id: number;
@@ -24,21 +38,16 @@ interface Props {
   onClose: () => void;
   onAdd: (selection: {
     qty: number;
-    size: "S" | "M" | "L";
-    extras: string[];
+    selectedSize: MenuItemSize | null;
+    selectedSizeId: number | null;
+    selectedExtras: MenuItemExtra[];
+    selectedExtraIds: number[];
     unitPrice: number;
     displayName: string;
     /** Synthetic per-line id (real menuItemId stays = item.id, this is for cart de-dup). */
     cartLineId: string;
   }) => void;
 }
-
-const EXTRA_LABELS: Record<string, string> = {
-  cheese: "Fromage extra",
-  spicy: "Sauce piquante",
-  fries: "Frites maison",
-};
-const EXTRA_KEYS = ["cheese", "spicy", "fries"] as const;
 
 // Default rich content (used when no per-item info is provided by the API).
 const DEFAULT_INGREDIENTS = ["Pain frais", "Sauce maison", "Légumes croquants", "Fromage fondant"];
@@ -52,18 +61,35 @@ const DEFAULT_TAGS = [
 export function MenuItemDetailModal({ visible, item, initialQty = 0, restaurantOpen = true, onClose, onAdd }: Props) {
   const colors = useColors();
   const [qty, setQty] = useState(Math.max(1, initialQty));
-  const [size, setSize] = useState<"S" | "M" | "L">("M");
-  const [extras, setExtras] = useState<Record<string, boolean>>({});
+  const [sizes, setSizes] = useState<MenuItemSize[]>([]);
+  const [extrasList, setExtrasList] = useState<MenuItemExtra[]>([]);
+  const [selectedSize, setSelectedSize] = useState<MenuItemSize | null>(null);
+  const [selectedExtras, setSelectedExtras] = useState<Record<number, boolean>>({});
+  const [loadingOptions, setLoadingOptions] = useState(false);
 
   const addPulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (visible) {
+    if (visible && item) {
       setQty(Math.max(1, initialQty));
-      setSize("M");
-      setExtras({});
+      setSelectedSize(null);
+      setSelectedExtras({});
+      setLoadingOptions(true);
+      Promise.all([listMenuItemSizes(item.id), listMenuItemExtras(item.id)])
+        .then(([sz, ex]) => {
+          const availableSizes = (sz || []).filter((s) => s.isAvailable !== false);
+          const availableExtras = (ex || []).filter((e) => e.isAvailable !== false);
+          setSizes(availableSizes);
+          setExtrasList(availableExtras);
+          if (availableSizes.length > 0) setSelectedSize(availableSizes[0]);
+        })
+        .catch(() => {
+          setSizes([]);
+          setExtrasList([]);
+        })
+        .finally(() => setLoadingOptions(false));
     }
-  }, [visible, initialQty]);
+  }, [visible, item?.id, initialQty]);
 
   // Pseudo-stable variation values per item id so info doesn't jump.
   const meta = useMemo(() => {
@@ -77,8 +103,10 @@ export function MenuItemDetailModal({ visible, item, initialQty = 0, restaurantO
 
   if (!item) return null;
 
-  const sizeAdjust = size === "S" ? -10 : size === "L" ? 15 : 0;
-  const extrasTotal = Object.entries(extras).reduce((s, [, v]) => s + (v ? 8 : 0), 0);
+  const sizeAdjust = selectedSize ? selectedSize.priceAdjustment : 0;
+  const extrasTotal = extrasList
+    .filter((e) => selectedExtras[e.id])
+    .reduce((s, e) => s + e.price, 0);
   const unitPrice = item.price + sizeAdjust + extrasTotal;
   const total = unitPrice * qty;
 
@@ -96,20 +124,20 @@ export function MenuItemDetailModal({ visible, item, initialQty = 0, restaurantO
       Animated.spring(addPulse, { toValue: 0.94, useNativeDriver: true, friction: 4 }),
       Animated.spring(addPulse, { toValue: 1, useNativeDriver: true, friction: 4 }),
     ]).start();
-    const sizeIdx = size === "S" ? 1 : size === "L" ? 3 : 2;
-    const extrasMask = EXTRA_KEYS.reduce((m, k, i) => m + (extras[k] ? 1 << i : 0), 0);
-    const extrasArr = EXTRA_KEYS.filter((k) => extras[k]).map((k) => EXTRA_LABELS[k]);
-    const cartLineId = `${item.id}:${sizeIdx}:${extrasMask}`;
-    const sizeLabel = size === "M" ? "" : ` (${size})`;
-    const extrasLabel = extrasArr.length ? ` + ${extrasArr.join(", ")}` : "";
+    const chosenExtras = extrasList.filter((e) => selectedExtras[e.id]);
+    const selectedExtraIds = chosenExtras.map((e) => e.id).sort((a, b) => a - b);
+    const selectedSizeId = selectedSize?.id ?? null;
+    const cartLineId = `${item.id}:S${selectedSizeId ?? 0}:E${selectedExtraIds.join(",")}`;
+    const sizeLabel = selectedSize ? ` (${selectedSize.name})` : "";
+    const extrasLabel = chosenExtras.length ? ` + ${chosenExtras.map((e) => e.name).join(", ")}` : "";
     const displayName = `${item.name}${sizeLabel}${extrasLabel}`;
-    onAdd({ qty, size, extras: extrasArr, unitPrice, displayName, cartLineId });
+    onAdd({ qty, selectedSize, selectedSizeId, selectedExtras: chosenExtras, selectedExtraIds, unitPrice, displayName, cartLineId });
     onClose();
   };
 
-  const toggleExtra = (key: string) => {
+  const toggleExtra = (id: number) => {
     if (Platform.OS !== "web") Haptics.selectionAsync();
-    setExtras((e) => ({ ...e, [key]: !e[key] }));
+    setSelectedExtras((e) => ({ ...e, [id]: !e[id] }));
   };
 
   return (
@@ -175,57 +203,67 @@ export function MenuItemDetailModal({ visible, item, initialQty = 0, restaurantO
                   "Préparé avec soin dans la cuisine du restaurant, livré chaud chez vous en quelques minutes. Une explosion de saveurs à chaque bouchée."}
               </Text>
 
+              {loadingOptions && (
+                <View style={{ alignItems: "center", paddingVertical: 12 }}>
+                  <ActivityIndicator color={colors.primary} size="small" />
+                </View>
+              )}
+
               {/* Section: Taille */}
-              <SectionTitle label="Choisis ta taille" emoji="📏" colors={colors} />
-              <View style={styles.sizeRow}>
-                {(["S", "M", "L"] as const).map((s) => (
-                  <Pressable
-                    key={s}
-                    onPress={() => {
-                      if (Platform.OS !== "web") Haptics.selectionAsync();
-                      setSize(s);
-                    }}
-                    style={[
-                      styles.sizeChip,
-                      { borderColor: colors.border, backgroundColor: colors.card },
-                      size === s && { borderColor: colors.primary, backgroundColor: "#FFE0EC" },
-                    ]}
-                  >
-                    <Text style={[styles.sizeLabel, { color: size === s ? colors.primary : colors.heading }]}>{s}</Text>
-                    <Text style={[styles.sizeAdjust, { color: colors.mutedForeground }]}>
-                      {s === "S" ? "−10" : s === "L" ? "+15" : "Standard"}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              {sizes.length > 0 && (
+                <>
+                  <SectionTitle label="Choisis ta taille" emoji="📏" colors={colors} />
+                  <View style={styles.sizeRow}>
+                    {sizes.map((s) => (
+                      <Pressable
+                        key={s.id}
+                        onPress={() => {
+                          if (Platform.OS !== "web") Haptics.selectionAsync();
+                          setSelectedSize(s);
+                        }}
+                        style={[
+                          styles.sizeChip,
+                          { borderColor: colors.border, backgroundColor: colors.card },
+                          selectedSize?.id === s.id && { borderColor: colors.primary, backgroundColor: "#FFE0EC" },
+                        ]}
+                      >
+                        <Text style={[styles.sizeLabel, { color: selectedSize?.id === s.id ? colors.primary : colors.heading }]}>{s.name}</Text>
+                        <Text style={[styles.sizeAdjust, { color: colors.mutedForeground }]}>
+                          {s.priceAdjustment === 0 ? "Standard" : `${s.priceAdjustment > 0 ? "+" : ""}${s.priceAdjustment} MAD`}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              )}
 
               {/* Section: Suppléments */}
-              <SectionTitle label="Suppléments" emoji="✨" colors={colors} />
-              {[
-                { key: "cheese", label: "Fromage extra", emoji: "🧀" },
-                { key: "spicy", label: "Sauce piquante", emoji: "🌶️" },
-                { key: "fries", label: "Frites maison", emoji: "🍟" },
-              ].map((ex) => {
-                const on = !!extras[ex.key];
-                return (
-                  <Pressable
-                    key={ex.key}
-                    onPress={() => toggleExtra(ex.key)}
-                    style={[
-                      styles.extraRow,
-                      { borderColor: colors.border, backgroundColor: colors.card },
-                      on && { borderColor: colors.primary, backgroundColor: "#FFF5F8" },
-                    ]}
-                  >
-                    <Text style={styles.extraEmoji}>{ex.emoji}</Text>
-                    <Text style={[styles.extraLabel, { color: colors.heading }]}>{ex.label}</Text>
-                    <Text style={[styles.extraPrice, { color: colors.mutedForeground }]}>+8 MAD</Text>
-                    <View style={[styles.checkbox, on && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
-                      {on ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
-                    </View>
-                  </Pressable>
-                );
-              })}
+              {extrasList.length > 0 && (
+                <>
+                  <SectionTitle label="Suppléments" emoji="✨" colors={colors} />
+                  {extrasList.map((ex) => {
+                    const on = !!selectedExtras[ex.id];
+                    return (
+                      <Pressable
+                        key={ex.id}
+                        onPress={() => toggleExtra(ex.id)}
+                        style={[
+                          styles.extraRow,
+                          { borderColor: colors.border, backgroundColor: colors.card },
+                          on && { borderColor: colors.primary, backgroundColor: "#FFF5F8" },
+                        ]}
+                      >
+                        <Text style={styles.extraEmoji}>✨</Text>
+                        <Text style={[styles.extraLabel, { color: colors.heading }]}>{ex.name}</Text>
+                        <Text style={[styles.extraPrice, { color: colors.mutedForeground }]}>{ex.price > 0 ? `+${ex.price} MAD` : ex.price < 0 ? `${ex.price} MAD` : "Inclus"}</Text>
+                        <View style={[styles.checkbox, on && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+                          {on ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </>
+              )}
 
               {/* Section: Ingrédients */}
               <SectionTitle label="Ingrédients" emoji="🥗" colors={colors} />

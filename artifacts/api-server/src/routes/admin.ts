@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, usersTable, restaurantsTable, ordersTable, driversTable } from "@workspace/db";
-import { eq, inArray, count, sum, gte } from "drizzle-orm";
+import { eq, inArray, count, sum, gte, desc } from "drizzle-orm";
 import { orderItemsTable } from "@workspace/db";
 import { requireRole } from "../middlewares/auth";
 
@@ -37,7 +37,7 @@ router.get("/admin/recent-orders", requireRole("admin"), async (_req, res): Prom
   const orders = await db
     .select()
     .from(ordersTable)
-    .orderBy(ordersTable.createdAt)
+    .orderBy(desc(ordersTable.createdAt))
     .limit(20);
 
   const ordersWithItems = await Promise.all(

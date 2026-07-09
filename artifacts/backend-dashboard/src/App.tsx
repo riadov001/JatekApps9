@@ -20,6 +20,7 @@ import Staff from "@/pages/staff";
 import Deliverymen from "@/pages/deliverymen";
 import Roles from "@/pages/roles";
 import Promotions from "@/pages/promotions";
+import Vouchers from "@/pages/vouchers";
 import Wallets from "@/pages/wallets";
 import Notifications from "@/pages/notifications";
 import Reports from "@/pages/reports";
@@ -49,6 +50,7 @@ function Router() {
               <Route path="/roles" component={Roles} />
               <Route path="/settings" component={SettingsPage} />
               <Route path="/promotions" component={Promotions} />
+              <Route path="/vouchers" component={Vouchers} />
               <Route path="/wallets" component={Wallets} />
               <Route path="/notifications" component={Notifications} />
               <Route path="/reports" component={Reports} />

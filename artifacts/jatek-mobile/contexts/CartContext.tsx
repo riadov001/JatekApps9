@@ -13,6 +13,16 @@ export interface CartItem {
   price: number;
   quantity: number;
   imageUrl?: string | null;
+  /** Selected size label, e.g. "Large" */
+  selectedSize?: string;
+  /** DB id of selected size (sent to API for server-side price validation). */
+  selectedSizeId?: number;
+  /** Price adjustment for the selected size (included in `price`). */
+  selectedSizePriceAdjustment?: number;
+  /** Selected extra labels, e.g. ["Fromage extra"] */
+  selectedExtras?: string[];
+  /** DB ids of selected extras (sent to API for server-side price validation). */
+  selectedExtraIds?: number[];
 }
 
 export interface RestaurantPricing {
@@ -60,7 +70,7 @@ const CartContext = createContext<CartContextType | null>(null);
 // (real `menuItemId` is preserved separately so the API gets the right DB id).
 // Previous carts (v2) may contain items with the old fake variant id stored
 // as `menuItemId` and would cause /api/orders to return 404.
-const CART_KEY = "jatek_cart_v3";
+const CART_KEY = "jatek_cart_v4";
 const ADDR_KEY = "jatek_selected_address_v1";
 const COUPON_KEY = "jatek_cart_coupon_v1";
 const NOTES_KEY = "jatek_cart_notes_v1";
@@ -125,7 +135,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!ready) return;
-    AsyncStorage.setItem(CART_KEY, JSON.stringify({ items, restaurantId, restaurantName, deliveryFee, freeDeliveryThreshold }));
+    AsyncStorage.setItem(CART_KEY, JSON.stringify({ items, restaurantId, restaurantName, deliveryFee, freeDeliveryThreshold })).catch((err) => {
+      console.warn("[Cart] failed to persist cart:", err);
+    });
   }, [items, restaurantId, restaurantName, deliveryFee, freeDeliveryThreshold, ready]);
 
   useEffect(() => {

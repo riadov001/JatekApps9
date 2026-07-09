@@ -4,6 +4,8 @@ import {
   ordersTable,
   orderItemsTable,
   menuItemsTable,
+  menuItemSizesTable,
+  menuItemExtrasTable,
   restaurantsTable,
   usersTable,
   driversTable,
@@ -153,35 +155,58 @@ async function getOrderWithItems(orderId: number) {
   return { ...order, items };
 }
 
-router.get("/orders/active", async (req, res): Promise<void> => {
-  const activeStatuses = ["pending", "accepted", "confirmed", "preparing", "ready", "picked_up", "driver_at_restaurant", "en_route", "out_for_delivery"];
-  const orders = await db.select().from(ordersTable).where(inArray(ordersTable.status, activeStatuses));
+/** Active orders — for admin/restaurant live ops dashboards. Requires auth. */
+router.get("/orders/active", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  const role = req.userRole;
+  if (!role || !["admin", "super_admin", "restaurant_owner", "manager"].includes(role)) {
+    res.status(403).json({ error: "Forbidden: requires admin or restaurant owner role" });
+    return;
+  }
+  try {
+    const activeStatuses = ["pending", "accepted", "confirmed", "preparing", "ready", "picked_up", "driver_at_restaurant", "en_route", "out_for_delivery"];
+    const orders = await db.select().from(ordersTable).where(inArray(ordersTable.status, activeStatuses));
 
-  const ordersWithItems = await Promise.all(
-    orders.map(async (o) => {
-      const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, o.id));
-      return { ...o, items };
-    })
-  );
+    const ordersWithItems = await Promise.all(
+      orders.map(async (o) => {
+        const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, o.id));
+        return { ...o, items };
+      })
+    );
 
-  res.json(ordersWithItems);
+    res.json(ordersWithItems);
+  } catch (err) {
+    next(err);
+  }
 });
 
-/** Orders that are "ready" — available for any driver to pick up */
-router.get("/orders/available", async (req, res): Promise<void> => {
-  const orders = await db
-    .select()
-    .from(ordersTable)
-    .where(and(eq(ordersTable.status, "ready"), isNull(ordersTable.driverId)));
+/** Orders that are "ready" — available for any driver to pick up. Requires driver or admin auth. */
+router.get("/orders/available", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  const role = req.userRole;
+  if (!role || !["admin", "super_admin", "driver", "manager"].includes(role)) {
+    res.status(403).json({ error: "Forbidden: requires driver or admin role" });
+    return;
+  }
+  try {
+    const orders = await db
+      .select({
+        id: ordersTable.id,
+        reference: ordersTable.reference,
+        restaurantId: ordersTable.restaurantId,
+        restaurantName: ordersTable.restaurantName,
+        deliveryAddress: ordersTable.deliveryAddress,
+        total: ordersTable.total,
+        deliveryFee: ordersTable.deliveryFee,
+        estimatedDeliveryTime: ordersTable.estimatedDeliveryTime,
+        status: ordersTable.status,
+        createdAt: ordersTable.createdAt,
+      })
+      .from(ordersTable)
+      .where(and(eq(ordersTable.status, "ready"), isNull(ordersTable.driverId)));
 
-  const ordersWithItems = await Promise.all(
-    orders.map(async (o) => {
-      const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, o.id));
-      return { ...o, items };
-    })
-  );
-
-  res.json(ordersWithItems);
+    res.json(orders);
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.get("/orders", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
@@ -249,7 +274,10 @@ router.post("/orders", requireAuth, async (req: AuthedRequest, res): Promise<voi
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
 
   let subtotal = 0;
-  const orderItemsData: { menuItemId: number; menuItemName: string; quantity: number; unitPrice: number; totalPrice: number }[] = [];
+  const orderItemsData: {
+    menuItemId: number; menuItemName: string; quantity: number; unitPrice: number; totalPrice: number;
+    selectedSize: string | null; selectedSizePriceAdjustment: number | null; selectedExtras: string | null;
+  }[] = [];
 
   for (const item of items) {
     const [menuItem] = await db.select().from(menuItemsTable).where(eq(menuItemsTable.id, item.menuItemId)).limit(1);
@@ -257,14 +285,60 @@ router.post("/orders", requireAuth, async (req: AuthedRequest, res): Promise<voi
       res.status(404).json({ error: `Menu item ${item.menuItemId} not found` });
       return;
     }
-    const itemTotal = menuItem.price * item.quantity;
+    if (menuItem.restaurantId !== restaurantId) {
+      res.status(400).json({ error: `Menu item ${item.menuItemId} does not belong to this restaurant` });
+      return;
+    }
+
+    let sizeAdjustment = 0;
+    let selectedSizeLabel: string | null = null;
+    if (typeof item.selectedSizeId === "number") {
+      const [size] = await db
+        .select()
+        .from(menuItemSizesTable)
+        .where(and(eq(menuItemSizesTable.id, item.selectedSizeId), eq(menuItemSizesTable.menuItemId, menuItem.id)))
+        .limit(1);
+      if (!size || !size.isAvailable) {
+        res.status(400).json({ error: `Selected size unavailable for menu item ${item.menuItemId}` });
+        return;
+      }
+      sizeAdjustment = size.priceAdjustment;
+      selectedSizeLabel = size.name;
+    }
+
+    let extrasTotal = 0;
+    const selectedExtraLabels: string[] = [];
+    if (Array.isArray(item.selectedExtraIds) && item.selectedExtraIds.length > 0) {
+      const extras = await db
+        .select()
+        .from(menuItemExtrasTable)
+        .where(and(eq(menuItemExtrasTable.menuItemId, menuItem.id), inArray(menuItemExtrasTable.id, item.selectedExtraIds)));
+      if (extras.length !== item.selectedExtraIds.length) {
+        res.status(400).json({ error: `Invalid extras selected for menu item ${item.menuItemId}` });
+        return;
+      }
+      for (const ex of extras) {
+        if (!ex.isAvailable) {
+          res.status(400).json({ error: `Selected extra ${ex.name} is unavailable` });
+          return;
+        }
+        extrasTotal += ex.price;
+        selectedExtraLabels.push(ex.name);
+      }
+    }
+
+    const unitPrice = Math.max(0, menuItem.price + sizeAdjustment + extrasTotal);
+    const itemTotal = unitPrice * item.quantity;
     subtotal += itemTotal;
     orderItemsData.push({
       menuItemId: menuItem.id,
       menuItemName: menuItem.name,
       quantity: item.quantity,
-      unitPrice: menuItem.price,
+      unitPrice,
       totalPrice: itemTotal,
+      selectedSize: selectedSizeLabel,
+      selectedSizePriceAdjustment: sizeAdjustment,
+      selectedExtras: selectedExtraLabels.length ? JSON.stringify(selectedExtraLabels) : null,
     });
   }
 
@@ -325,6 +399,21 @@ router.post("/orders", requireAuth, async (req: AuthedRequest, res): Promise<voi
   await db.insert(orderItemsTable).values(
     orderItemsData.map((i) => ({ ...i, orderId: order.id }))
   );
+
+  // Persist aggregated item options into the order notes for kitchen readability
+  if (orderItemsData.some((i) => i.selectedSize || i.selectedExtras)) {
+    const optionsNotes = orderItemsData
+      .filter((i) => i.selectedSize || i.selectedExtras)
+      .map((i) => {
+        const parts = [i.menuItemName, `x${i.quantity}`];
+        if (i.selectedSize) parts.push(`Taille: ${i.selectedSize}`);
+        if (i.selectedExtras) parts.push(`Extras: ${JSON.parse(i.selectedExtras).join(", ")}`);
+        return parts.join(" — ");
+      })
+      .join("\n");
+    const updatedNotes = [notes, "---", "Options :", optionsNotes].filter(Boolean).join("\n");
+    await db.update(ordersTable).set({ notes: updatedNotes }).where(eq(ordersTable.id, order.id));
+  }
 
   // Record promo code usage
   if (appliedPromoId) {

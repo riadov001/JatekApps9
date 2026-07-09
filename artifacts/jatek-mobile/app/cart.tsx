@@ -98,7 +98,12 @@ export default function CartScreen() {
         restaurantId: restaurantId!,
         deliveryAddress: address.trim(),
         notes: combinedNotes || undefined,
-        items: items.map((i) => ({ menuItemId: i.menuItemId, quantity: i.quantity })),
+        items: items.map((i) => ({
+          menuItemId: i.menuItemId,
+          quantity: i.quantity,
+          selectedSizeId: i.selectedSizeId,
+          selectedExtraIds: i.selectedExtraIds,
+        })),
       },
     }, {
       onSuccess: (order) => {
@@ -231,6 +236,14 @@ export default function CartScreen() {
               <View style={styles.cartItem}>
                 <View style={styles.cartItemInfo}>
                   <Text style={[styles.cartItemName, { color: colors.foreground }]}>{item.name}</Text>
+                  {(item.selectedSize || (item.selectedExtras && item.selectedExtras.length > 0)) && (
+                    <Text style={[styles.cartItemOptions, { color: colors.mutedForeground }]} numberOfLines={1}>
+                      {[
+                        item.selectedSize,
+                        ...(item.selectedExtras || []),
+                      ].filter(Boolean).join(" · ")}
+                    </Text>
+                  )}
                   <Text style={[styles.cartItemPrice, { color: colors.primary }]}>{t("cart_each", { price: item.price.toFixed(0) })}</Text>
                 </View>
                 <View style={styles.qtyRow}>
@@ -567,6 +580,7 @@ const styles = StyleSheet.create({
   qtyBtnSoft: { backgroundColor: "#FFE3EF", borderWidth: 1, borderColor: "#FFD0E2" },
   qty: { fontSize: 15, fontFamily: "Inter_600SemiBold", minWidth: 20, textAlign: "center" },
   cartItemTotal: { fontSize: 14, fontFamily: "Inter_600SemiBold", minWidth: 56, textAlign: "right" },
+  cartItemOptions: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2, marginBottom: 2 },
   divider: { height: StyleSheet.hairlineWidth, marginHorizontal: 14 },
   sectionLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold", paddingHorizontal: 16, marginBottom: 8 },
   addressCard: { flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: 16, marginBottom: 16, padding: 14, borderRadius: 14, borderWidth: 1 },

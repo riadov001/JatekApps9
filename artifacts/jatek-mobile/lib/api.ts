@@ -268,6 +268,16 @@ export async function updateOrderStatus(orderId: number, status: string): Promis
   });
 }
 
+// Menu item options (sizes + extras) ---------------------------------
+export interface MenuItemSize { id: number; menuItemId: number; name: string; priceAdjustment: number; sortOrder: number; isAvailable: boolean; }
+export interface MenuItemExtra { id: number; menuItemId: number; name: string; price: number; sortOrder: number; isAvailable: boolean; }
+export async function listMenuItemSizes(menuItemId: number): Promise<MenuItemSize[]> {
+  return jsonFetch(`/api/menu/${menuItemId}/sizes`);
+}
+export async function listMenuItemExtras(menuItemId: number): Promise<MenuItemExtra[]> {
+  return jsonFetch(`/api/menu/${menuItemId}/extras`);
+}
+
 // Restaurants --------------------------------------------------------
 export interface RestaurantProfileInput {
   legalName: string;
