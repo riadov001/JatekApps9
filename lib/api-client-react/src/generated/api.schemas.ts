@@ -286,6 +286,8 @@ export interface CreateOrderBody {
   restaurantId: number;
   deliveryAddress: string;
   notes?: string;
+  /** Payment method: "cash" (default) or "card". */
+  paymentMethod?: "cash" | "card";
   items: CreateOrderBodyItemsItem[];
 }
 

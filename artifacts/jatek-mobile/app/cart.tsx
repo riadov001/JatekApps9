@@ -98,6 +98,7 @@ export default function CartScreen() {
         restaurantId: restaurantId!,
         deliveryAddress: address.trim(),
         notes: combinedNotes || undefined,
+        paymentMethod: paymentMethod ?? "cash",
         items: items.map((i) => ({
           menuItemId: i.menuItemId,
           quantity: i.quantity,

@@ -18,6 +18,9 @@ import {
   LogOut,
   Menu,
   ChevronDown,
+  Image,
+  Activity,
+  Server,
 } from "lucide-react";
 import { useBackendMe } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -78,6 +81,7 @@ const navGroups: NavGroup[] = [
     label: "Marketing",
     items: [
       { href: "/promotions", label: "Promotions", icon: Tags, roles: ["super_admin", "admin", "manager"] },
+      { href: "/banners", label: "Bannières", icon: Image, roles: ["super_admin", "admin", "manager"] },
       { href: "/vouchers", label: "Vouchers", icon: TicketPercent, roles: ["super_admin", "admin", "manager"] },
       { href: "/notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin", "manager"] },
     ],
@@ -93,6 +97,8 @@ const navGroups: NavGroup[] = [
     label: "System",
     items: [
       { href: "/roles", label: "Roles", icon: Shield, roles: ["super_admin"] },
+      { href: "/audit", label: "Audit", icon: Activity, roles: ["super_admin", "admin"] },
+      { href: "/monitoring", label: "Monitoring", icon: Server, roles: ["super_admin", "admin"] },
       { href: "/settings", label: "Settings", icon: Settings, roles: ["super_admin", "admin"] },
     ],
   },

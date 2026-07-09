@@ -19,6 +19,7 @@ import notificationPrefsRouter from "./notificationPrefs";
 import userConsentsRouter from "./userConsents";
 import quotesRouter from "./quotes";
 import backendRouter from "./backend";
+import backendAdminRouter, { startRestaurantAutoCloseScheduler } from "./backendAdmin";
 import contentRouter from "./content";
 import promoCodesRouter from "./promoCodes";
 import chatRouter from "./chat";
@@ -30,6 +31,9 @@ import { db, ordersTable, driversTable, restaurantsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router: IRouter = Router();
+
+// Start the restaurant auto-close scheduler (runs every 60s)
+startRestaurantAutoCloseScheduler();
 
 router.use(healthRouter);
 router.use(authRouter);
@@ -51,6 +55,7 @@ router.use(notificationPrefsRouter);
 router.use(userConsentsRouter);
 router.use(quotesRouter);
 router.use(backendRouter);
+router.use(backendAdminRouter);
 router.use(contentRouter);
 router.use(promoCodesRouter);
 router.use(chatRouter);

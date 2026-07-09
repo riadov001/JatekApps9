@@ -14,14 +14,20 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Star, Store, MapPin, Phone, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Search, Star, Store, MapPin, Phone, Plus, Pencil, Trash2, Loader2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api";
+
+const DAY_LABELS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+
+type HourRow = { dayOfWeek: number; openTime: string; closeTime: string; isClosed: boolean };
+const defaultHours = (): HourRow[] => Array.from({ length: 7 }, (_, i) => ({ dayOfWeek: i, openTime: "09:00", closeTime: "22:00", isClosed: i === 0 }));
 
 const EMPTY = {
   name: "", description: "", address: "", phone: "", category: "restaurant",
@@ -46,6 +52,31 @@ export default function Shops() {
   const [form, setForm] = useState(EMPTY);
   const [editing, setEditing] = useState<any | null>(null);
   const [editForm, setEditForm] = useState(EMPTY);
+  const [hoursShopId, setHoursShopId] = useState<number | null>(null);
+  const [hoursForm, setHoursForm] = useState<HourRow[]>(defaultHours());
+  const [hoursSaving, setHoursSaving] = useState(false);
+
+  const { data: existingHours } = useQuery<HourRow[]>({
+    queryKey: ["shop-hours", hoursShopId],
+    queryFn: () => apiFetch(`/api/backend/shops/${hoursShopId}/hours`),
+    enabled: !!hoursShopId,
+  });
+
+  const openHours = (shopId: number) => {
+    setHoursShopId(shopId);
+    setHoursForm(existingHours?.length ? existingHours : defaultHours());
+  };
+
+  const handleSaveHours = async () => {
+    if (!hoursShopId) return;
+    setHoursSaving(true);
+    try {
+      await apiFetch(`/api/backend/shops/${hoursShopId}/hours`, { method: "PUT", body: JSON.stringify({ hours: hoursForm }) });
+      toast({ title: "Horaires enregistrés ✓" });
+      setHoursShopId(null);
+    } catch (e: any) { toast({ title: "Erreur", description: e?.message, variant: "destructive" }); }
+    finally { setHoursSaving(false); }
+  };
 
   const invalidate = () => qc.invalidateQueries({ queryKey: getListBackendShopsQueryKey() });
 
@@ -161,6 +192,7 @@ export default function Shops() {
                   </TableCell>
                   <TableCell><Badge className={shop.isOpen ? "bg-green-500 hover:bg-green-600" : "bg-destructive"}>{shop.isOpen ? "Ouvert" : "Fermé"}</Badge></TableCell>
                   <TableCell className="text-right space-x-1">
+                    <Button variant="ghost" size="icon" className="h-10 w-10" title="Horaires" onClick={() => openHours(shop.id)}><Clock className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => openEdit(shop)}><Pencil className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive hover:bg-destructive/10" onClick={() => handleDelete(shop.id)}><Trash2 className="h-4 w-4" /></Button>
                   </TableCell>
@@ -170,6 +202,35 @@ export default function Shops() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Hours Dialog */}
+      <Dialog open={!!hoursShopId} onOpenChange={(o) => !o && setHoursShopId(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>Horaires d'ouverture</DialogTitle></DialogHeader>
+          <div className="space-y-2 pt-2 max-h-[60vh] overflow-y-auto pr-1">
+            {hoursForm.map((row, idx) => (
+              <div key={row.dayOfWeek} className={`flex items-center gap-2 p-2 rounded-lg border ${row.isClosed ? "bg-muted/40 opacity-60" : ""}`}>
+                <span className="w-24 text-sm font-medium shrink-0">{DAY_LABELS[row.dayOfWeek]}</span>
+                <label className="flex items-center gap-1 text-xs shrink-0">
+                  <Switch checked={!row.isClosed} onCheckedChange={(v) => setHoursForm(h => h.map((r, i) => i === idx ? { ...r, isClosed: !v } : r))} />
+                  {row.isClosed ? "Fermé" : "Ouvert"}
+                </label>
+                {!row.isClosed && (
+                  <>
+                    <Input type="time" className="flex-1 h-8 text-sm" value={row.openTime} onChange={(e) => setHoursForm(h => h.map((r, i) => i === idx ? { ...r, openTime: e.target.value } : r))} />
+                    <span className="text-xs text-muted-foreground">→</span>
+                    <Input type="time" className="flex-1 h-8 text-sm" value={row.closeTime} onChange={(e) => setHoursForm(h => h.map((r, i) => i === idx ? { ...r, closeTime: e.target.value } : r))} />
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => setHoursShopId(null)}>Annuler</Button>
+            <Button onClick={handleSaveHours} disabled={hoursSaving}>{hoursSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Enregistrer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="sm:max-w-2xl sm:max-h-[85vh] sm:overflow-y-auto">

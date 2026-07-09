@@ -1442,6 +1442,8 @@ export const CreateOrderBody = zod.object({
   restaurantId: zod.number(),
   deliveryAddress: zod.string(),
   notes: zod.string().optional(),
+  /** Payment method: "cash" (default) or "card". */
+  paymentMethod: zod.enum(["cash", "card"]).optional().default("cash"),
   items: zod.array(
     zod.object({
       menuItemId: zod.number(),

@@ -239,6 +239,13 @@ export default function LoginScreen() {
                   {emailIsRegister ? "Déjà un compte ? Se connecter" : "Nouveau ? Créer un compte"}
                 </Text>
               </TouchableOpacity>
+              {!emailIsRegister && (
+                <TouchableOpacity onPress={() => router.push("/(auth)/forgot-password")} style={{ alignSelf: "center", paddingVertical: 4 }}>
+                  <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 13, textDecorationLine: "underline" }}>
+                    Mot de passe oublié ?
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
           <>

@@ -34,6 +34,8 @@ export const ordersTable = pgTable("orders", {
   proofPhotoUrl: text("proof_photo_url"),
   /** Applied promo code string (stored for reference). */
   promoCode: text("promo_code"),
+  /** Payment method chosen by the customer: "cash" or "card". */
+  paymentMethod: text("payment_method").notNull().default("cash"),
   /** 1-5 star rating the customer gives the driver after delivery. */
   driverRating: integer("driver_rating"),
   driverRatingComment: text("driver_rating_comment"),

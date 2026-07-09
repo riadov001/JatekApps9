@@ -209,42 +209,47 @@ router.get("/orders/available", requireAuth, async (req: AuthedRequest, res, nex
   }
 });
 
-router.get("/orders", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
-  const queryParams = ListOrdersQueryParams.safeParse(req.query);
+router.get("/orders", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  try {
+    const queryParams = ListOrdersQueryParams.safeParse(req.query);
 
-  let conditions: any[] = [];
+    let conditions: any[] = [];
 
-  if (queryParams.success) {
-    const { status, userId, restaurantId, driverId } = queryParams.data;
-    if (status) conditions.push(eq(ordersTable.status, status));
-    if (userId) conditions.push(eq(ordersTable.userId, userId));
-    if (restaurantId) conditions.push(eq(ordersTable.restaurantId, restaurantId));
-    if (driverId) conditions.push(eq(ordersTable.driverId, driverId));
+    if (queryParams.success) {
+      const { status, userId, restaurantId, driverId } = queryParams.data;
+      if (status) conditions.push(eq(ordersTable.status, status));
+      if (userId) conditions.push(eq(ordersTable.userId, userId));
+      if (restaurantId) conditions.push(eq(ordersTable.restaurantId, restaurantId));
+      if (driverId) conditions.push(eq(ordersTable.driverId, driverId));
+    }
+
+    // Customers may only see their own orders unless filtering as restaurant owner/driver.
+    const role = req.userRole;
+    const filtersRestaurantOrDriver =
+      queryParams.success && (queryParams.data.restaurantId || queryParams.data.driverId);
+    if (role === "customer" || (!filtersRestaurantOrDriver && role !== "admin")) {
+      conditions.push(eq(ordersTable.userId, req.userId!));
+    }
+
+    const orders = conditions.length > 0
+      ? await db.select().from(ordersTable).where(and(...conditions))
+      : await db.select().from(ordersTable);
+
+    const ordersWithItems = await Promise.all(
+      orders.map(async (o) => {
+        const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, o.id));
+        return { ...o, items };
+      })
+    );
+
+    res.json(ordersWithItems);
+  } catch (err) {
+    next(err);
   }
-
-  // Customers may only see their own orders unless filtering as restaurant owner/driver.
-  const role = req.userRole;
-  const filtersRestaurantOrDriver =
-    queryParams.success && (queryParams.data.restaurantId || queryParams.data.driverId);
-  if (role === "customer" || (!filtersRestaurantOrDriver && role !== "admin")) {
-    conditions.push(eq(ordersTable.userId, req.userId!));
-  }
-
-  const orders = conditions.length > 0
-    ? await db.select().from(ordersTable).where(and(...conditions))
-    : await db.select().from(ordersTable);
-
-  const ordersWithItems = await Promise.all(
-    orders.map(async (o) => {
-      const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, o.id));
-      return { ...o, items };
-    })
-  );
-
-  res.json(ordersWithItems);
 });
 
-router.post("/orders", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+router.post("/orders", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  try {
   const parsed = CreateOrderBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -253,11 +258,12 @@ router.post("/orders", requireAuth, async (req: AuthedRequest, res): Promise<voi
 
   const { restaurantId, deliveryAddress, notes, items } = parsed.data;
   const userId = req.userId!;
-  const { promoCode, deliveryType, scheduledFor, isContactless } = req.body as {
+  const { promoCode, deliveryType, scheduledFor, isContactless, paymentMethod } = req.body as {
     promoCode?: string;
     deliveryType?: string;
     scheduledFor?: string;
     isContactless?: boolean;
+    paymentMethod?: "cash" | "card";
   };
 
   const [restaurant] = await db.select().from(restaurantsTable).where(eq(restaurantsTable.id, restaurantId)).limit(1);
@@ -394,6 +400,7 @@ router.post("/orders", requireAuth, async (req: AuthedRequest, res): Promise<voi
     scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
     isContactless: isContactless ?? false,
     promoCode: promoCode ? promoCode.toUpperCase().trim() : null,
+    paymentMethod: paymentMethod ?? "cash",
   }).returning();
 
   await db.insert(orderItemsTable).values(
@@ -471,32 +478,40 @@ router.post("/orders", requireAuth, async (req: AuthedRequest, res): Promise<voi
   notifyCustomerStatus(userId, "pending", order.id, restaurant.name);
 
   res.status(201).json(orderWithItems);
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get("/orders/:id", attachAuth, async (req: AuthedRequest, res): Promise<void> => {
-  const params = GetOrderParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
+router.get("/orders/:id", attachAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  try {
+    const params = GetOrderParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+
+    const order = await getOrderWithItems(params.data.id);
+    if (!order) {
+      res.status(404).json({ error: "Order not found" });
+      return;
+    }
+
+    // The pickup code is the secret that authorises the driver hand-off.
+    // Only the customer who placed the order (and admins) may see it; the
+    // assigned driver must request it verbally from the customer.
+    const isCustomerOwner = req.userId != null && req.userId === order.userId;
+    const isAdmin = req.userRole === "admin";
+    const sanitized = (isCustomerOwner || isAdmin) ? order : { ...order, pickupCode: null };
+
+    res.json(sanitized);
+  } catch (err) {
+    next(err);
   }
-
-  const order = await getOrderWithItems(params.data.id);
-  if (!order) {
-    res.status(404).json({ error: "Order not found" });
-    return;
-  }
-
-  // The pickup code is the secret that authorises the driver hand-off.
-  // Only the customer who placed the order (and admins) may see it; the
-  // assigned driver must request it verbally from the customer.
-  const isCustomerOwner = req.userId != null && req.userId === order.userId;
-  const isAdmin = req.userRole === "admin";
-  const sanitized = (isCustomerOwner || isAdmin) ? order : { ...order, pickupCode: null };
-
-  res.json(sanitized);
 });
 
-router.patch("/orders/:id/status", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+router.patch("/orders/:id/status", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  try {
   const params = UpdateOrderStatusParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -637,6 +652,9 @@ router.patch("/orders/:id/status", requireAuth, async (req: AuthedRequest, res):
   }
 
   res.json(orderWithItems);
+  } catch (err) {
+    next(err);
+  }
 });
 
 /**
@@ -644,47 +662,52 @@ router.patch("/orders/:id/status", requireAuth, async (req: AuthedRequest, res):
  * in-memory tracking service. Useful for clients that just opened the page
  * and need an initial state before subscribing to the SSE channel.
  */
-router.get("/orders/:id/tracking", attachAuth, async (req: AuthedRequest, res): Promise<void> => {
-  const id = parseInt(String(req.params.id), 10);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid order id" }); return; }
+router.get("/orders/:id/tracking", attachAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid order id" }); return; }
 
-  const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
-  if (!order) { res.status(404).json({ error: "Order not found" }); return; }
+    const [order] = await db.select().from(ordersTable).where(eq(ordersTable.id, id)).limit(1);
+    if (!order) { res.status(404).json({ error: "Order not found" }); return; }
 
-  // Public tracking snapshot — usable from a deep link without auth (a la
-  // Glovo/Uber Eats) so customers and restaurant staff can see live progress
-  // without logging in. attachAuth only provides identity if the caller has
-  // a session, but the snapshot itself is intentionally accessible anon.
+    // Public tracking snapshot — usable from a deep link without auth (a la
+    // Glovo/Uber Eats) so customers and restaurant staff can see live progress
+    // without logging in. attachAuth only provides identity if the caller has
+    // a session, but the snapshot itself is intentionally accessible anon.
 
-  const driver = order.driverId
-    ? (await db.select().from(driversTable).where(eq(driversTable.id, order.driverId)).limit(1))[0]
-    : null;
+    const driver = order.driverId
+      ? (await db.select().from(driversTable).where(eq(driversTable.id, order.driverId)).limit(1))[0]
+      : null;
 
-  const live = order.driverId ? tracking.getState(order.driverId) : null;
-  const isOnline = order.driverId ? tracking.isOnline(order.driverId) : false;
+    const live = order.driverId ? tracking.getState(order.driverId) : null;
+    const isOnline = order.driverId ? tracking.isOnline(order.driverId) : false;
 
-  // Prefer the live in-memory position (fresher) over the DB snapshot.
-  const driverLat = live?.lat ?? driver?.latitude ?? null;
-  const driverLng = live?.lng ?? driver?.longitude ?? null;
-  const driverLastSeen = live?.lastSeen ?? (driver?.locationUpdatedAt ? driver.locationUpdatedAt.getTime() : null);
+    // Prefer the live in-memory position (fresher) over the DB snapshot.
+    const driverLat = live?.lat ?? driver?.latitude ?? null;
+    const driverLng = live?.lng ?? driver?.longitude ?? null;
+    const driverLastSeen = live?.lastSeen ?? (driver?.locationUpdatedAt ? driver.locationUpdatedAt.getTime() : null);
 
-  res.json({
-    orderId: order.id,
-    status: order.status,
-    driverId: order.driverId,
-    driverName: driver?.name ?? null,
-    driverLat,
-    driverLng,
-    driverLastSeen,
-    driverIsOnline: isOnline,
-    eta: live?.eta ?? null,
-    deliveryAddress: order.deliveryAddress,
-    updatedAt: order.updatedAt instanceof Date ? order.updatedAt.toISOString() : order.updatedAt,
-  });
+    res.json({
+      orderId: order.id,
+      status: order.status,
+      driverId: order.driverId,
+      driverName: driver?.name ?? null,
+      driverLat,
+      driverLng,
+      driverLastSeen,
+      driverIsOnline: isOnline,
+      eta: live?.eta ?? null,
+      deliveryAddress: order.deliveryAddress,
+      updatedAt: order.updatedAt instanceof Date ? order.updatedAt.toISOString() : order.updatedAt,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /** Driver accepts a "ready" order — assigns themselves to it */
-router.post("/orders/:id/accept-delivery", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+router.post("/orders/:id/accept-delivery", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  try {
   const orderId = parseInt(String(req.params.id), 10);
   if (isNaN(orderId)) { res.status(400).json({ error: "Invalid order id" }); return; }
 
@@ -746,13 +769,17 @@ router.post("/orders/:id/accept-delivery", requireAuth, async (req: AuthedReques
   tracking.attachOrder(driverId, orderId);
 
   res.json(orderWithItems);
+  } catch (err) {
+    next(err);
+  }
 });
 
 /**
  * Driver confirms hand-off by entering the 4-digit code shown on the
  * customer's screen. Only the assigned driver (or admin) may call this.
  */
-router.post("/orders/:id/confirm-delivery", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+router.post("/orders/:id/confirm-delivery", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  try {
   const orderId = parseInt(String(req.params.id), 10);
   if (isNaN(orderId)) { res.status(400).json({ error: "Invalid order id" }); return; }
 
@@ -823,6 +850,9 @@ router.post("/orders/:id/confirm-delivery", requireAuth, async (req: AuthedReque
   if (order.driverId) tracking.detachOrder(order.driverId, order.id);
 
   res.json(orderWithItems);
+  } catch (err) {
+    next(err);
+  }
 });
 
 /**
@@ -830,7 +860,8 @@ router.post("/orders/:id/confirm-delivery", requireAuth, async (req: AuthedReque
  * 80mm printers. Accessible to the restaurant owner via a signed token in
  * the query string so a freshly opened browser tab can fetch it.
  */
-router.get("/orders/:id/receipt", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+router.get("/orders/:id/receipt", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  try {
   const orderId = parseInt(String(req.params.id), 10);
   if (isNaN(orderId)) { res.status(400).send("Invalid order id"); return; }
 
@@ -905,10 +936,14 @@ router.get("/orders/:id/receipt", requireAuth, async (req: AuthedRequest, res): 
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.setHeader("Cache-Control", "no-store");
   res.send(html);
+  } catch (err) {
+    next(err);
+  }
 });
 
 /** Customer rates their driver after delivery */
-router.post("/orders/:id/rate-driver", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+router.post("/orders/:id/rate-driver", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  try {
   const orderId = parseInt(String(req.params.id), 10);
   if (isNaN(orderId)) { res.status(400).json({ error: "Invalid order id" }); return; }
 
@@ -943,10 +978,14 @@ router.post("/orders/:id/rate-driver", requireAuth, async (req: AuthedRequest, r
   }
 
   res.json(updated);
+  } catch (err) {
+    next(err);
+  }
 });
 
 /** Driver rates customer */
-router.post("/orders/:id/rate-customer", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+router.post("/orders/:id/rate-customer", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  try {
   const orderId = parseInt(String(req.params.id), 10);
   if (isNaN(orderId)) { res.status(400).json({ error: "Invalid order id" }); return; }
 
@@ -976,10 +1015,14 @@ router.post("/orders/:id/rate-customer", requireAuth, async (req: AuthedRequest,
     .returning();
 
   res.json(updated);
+  } catch (err) {
+    next(err);
+  }
 });
 
 /** Reorder — clone items from a previous order into a new pending order */
-router.post("/orders/:id/reorder", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+router.post("/orders/:id/reorder", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  try {
   const orderId = parseInt(String(req.params.id), 10);
   if (isNaN(orderId)) { res.status(400).json({ error: "Invalid order id" }); return; }
 
@@ -1057,6 +1100,9 @@ router.post("/orders/:id/reorder", requireAuth, async (req: AuthedRequest, res):
   notifyCustomerStatus(userId, "pending", newOrder.id, restaurant.name);
 
   res.status(201).json(newOrderWithItems);
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;
