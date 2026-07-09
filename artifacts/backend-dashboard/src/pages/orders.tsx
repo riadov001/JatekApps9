@@ -67,7 +67,7 @@ export default function Orders() {
 
   const { data: chatHistory } = useQuery<any[]>({
     queryKey: ["order-chat", selectedOrder?.id],
-    queryFn: () => apiFetch(`/api/chat/${selectedOrder!.id}`),
+    queryFn: () => apiFetch(`/api/orders/${selectedOrder!.id}/chat`),
     enabled: !!selectedOrder && actionModal === "chat",
     refetchInterval: 5000,
   });
@@ -123,7 +123,7 @@ export default function Orders() {
     if (!selectedOrder || !chatMessage.trim()) return;
     setChatLoading(true);
     try {
-      await apiFetch(`/api/chat/${selectedOrder.id}`, {
+      await apiFetch(`/api/orders/${selectedOrder.id}/chat`, {
         method: "POST",
         body: JSON.stringify({ message: chatMessage }),
       });
