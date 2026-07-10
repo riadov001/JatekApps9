@@ -161,10 +161,16 @@ router.delete("/backend/ads/:id", requireAuth, async (req: AuthedRequest, res, n
 // ────────────────────────────────────────────────────────────────────────────
 
 router.get("/backend/shops/:id/hours", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
-  if (!isAdmin(req.userRole)) { res.status(403).json({ error: "Forbidden" }); return; }
+  if (!isAdmin(req.userRole) && req.userRole !== "restaurant_owner") { res.status(403).json({ error: "Forbidden" }); return; }
   try {
     const shopId = parseInt(String(req.params.id), 10);
     if (isNaN(shopId)) { res.status(400).json({ error: "Invalid id" }); return; }
+    // restaurant_owner: verify they own this shop
+    if (req.userRole === "restaurant_owner") {
+      const owned = await db.select({ id: restaurantsTable.id }).from(restaurantsTable)
+        .where(and(eq(restaurantsTable.id, shopId), eq(restaurantsTable.ownerId, req.userId!)));
+      if (owned.length === 0) { res.status(403).json({ error: "Forbidden: not your restaurant" }); return; }
+    }
     const hours = await db.select().from(restaurantHoursTable)
       .where(eq(restaurantHoursTable.restaurantId, shopId))
       .orderBy(restaurantHoursTable.dayOfWeek);
@@ -174,9 +180,15 @@ router.get("/backend/shops/:id/hours", requireAuth, async (req: AuthedRequest, r
 
 /** Upsert full weekly schedule — body: { hours: [{dayOfWeek,openTime,closeTime,isClosed}] } */
 router.put("/backend/shops/:id/hours", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
-  if (!isAdmin(req.userRole)) { res.status(403).json({ error: "Forbidden" }); return; }
+  if (!isAdmin(req.userRole) && req.userRole !== "restaurant_owner") { res.status(403).json({ error: "Forbidden" }); return; }
   try {
     const shopId = parseInt(String(req.params.id), 10);
+    // restaurant_owner: verify they own this shop
+    if (req.userRole === "restaurant_owner") {
+      const owned = await db.select({ id: restaurantsTable.id }).from(restaurantsTable)
+        .where(and(eq(restaurantsTable.id, shopId), eq(restaurantsTable.ownerId, req.userId!)));
+      if (owned.length === 0) { res.status(403).json({ error: "Forbidden: not your restaurant" }); return; }
+    }
     if (isNaN(shopId)) { res.status(400).json({ error: "Invalid id" }); return; }
     const { hours } = req.body;
     if (!Array.isArray(hours)) { res.status(400).json({ error: "hours[] requis" }); return; }

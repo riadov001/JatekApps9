@@ -1,11 +1,12 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { setAuthTokenGetter } from "@workspace/api-client-react";
+import { setAuthTokenGetter, useBackendMe } from "@workspace/api-client-react";
 import NotFound from "@/pages/not-found";
 import { AuthGate } from "@/components/AuthGate";
 import { Layout } from "@/components/Layout";
+import { ADMIN_ONLY_PATHS } from "@/components/RoleGuard";
 
 // Pages
 import Login from "@/pages/login";
@@ -33,6 +34,20 @@ const queryClient = new QueryClient();
 
 setAuthTokenGetter(() => localStorage.getItem("jatek_backend_token"));
 
+/**
+ * Wraps a route component so that restaurant_owner users are redirected to "/"
+ * if they try to access an admin-only path.
+ */
+function AdminRoute({ path, component: Component }: { path: string; component: React.ComponentType }) {
+  const { data: me } = useBackendMe();
+  const role = me?.user?.role;
+
+  if (role === "restaurant_owner" && ADMIN_ONLY_PATHS.has(path)) {
+    return <Route path={path}><Redirect to="/" /></Route>;
+  }
+  return <Route path={path} component={Component} />;
+}
+
 function Router() {
   return (
     <Switch>
@@ -41,25 +56,29 @@ function Router() {
         <AuthGate>
           <Layout>
             <Switch>
+              {/* Routes accessible to all authenticated staff */}
               <Route path="/" component={Dashboard} />
               <Route path="/orders" component={Orders} />
               <Route path="/products" component={Products} />
               <Route path="/categories" component={Categories} />
               <Route path="/shops" component={Shops} />
               <Route path="/reviews" component={Reviews} />
-              <Route path="/customers" component={Customers} />
-              <Route path="/staff" component={Staff} />
-              <Route path="/deliverymen" component={Deliverymen} />
-              <Route path="/roles" component={Roles} />
-              <Route path="/settings" component={SettingsPage} />
               <Route path="/promotions" component={Promotions} />
               <Route path="/vouchers" component={Vouchers} />
-              <Route path="/wallets" component={Wallets} />
-              <Route path="/notifications" component={Notifications} />
               <Route path="/reports" component={Reports} />
-              <Route path="/banners" component={Banners} />
-              <Route path="/audit" component={AuditPage} />
-              <Route path="/monitoring" component={Monitoring} />
+
+              {/* Admin-only routes — restaurant_owner is redirected to "/" */}
+              <AdminRoute path="/customers" component={Customers} />
+              <AdminRoute path="/staff" component={Staff} />
+              <AdminRoute path="/deliverymen" component={Deliverymen} />
+              <AdminRoute path="/roles" component={Roles} />
+              <AdminRoute path="/wallets" component={Wallets} />
+              <AdminRoute path="/notifications" component={Notifications} />
+              <AdminRoute path="/banners" component={Banners} />
+              <AdminRoute path="/audit" component={AuditPage} />
+              <AdminRoute path="/monitoring" component={Monitoring} />
+              <AdminRoute path="/settings" component={SettingsPage} />
+
               <Route component={NotFound} />
             </Switch>
           </Layout>

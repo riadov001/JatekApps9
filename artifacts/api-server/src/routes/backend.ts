@@ -358,6 +358,73 @@ router.get("/backend/products", requireAuth, async (req: AuthedRequest, res): Pr
   res.json(rows);
 });
 
+// ---------- Products CRUD ----------
+router.post("/backend/products", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+  try {
+    const scoped = await getScopedShopIds(ctx.id, ctx.role, ctx.assignedShopId);
+    const { restaurantId, name, description, price, category, imageUrl, isAvailable, isPopular, allergens, tags, prepTimeMinutes, calories } = req.body || {};
+    if (!restaurantId || !name || price === undefined || !category) {
+      res.status(400).json({ error: "restaurantId, name, price, category requis" }); return;
+    }
+    const rid = Number(restaurantId);
+    if (scoped !== null && !scoped.includes(rid)) {
+      res.status(403).json({ error: "Forbidden: not your restaurant" }); return;
+    }
+    const [item] = await db.insert(menuItemsTable).values({
+      restaurantId: rid, name, description: description ?? null, price: Number(price),
+      category, imageUrl: imageUrl ?? null, isAvailable: isAvailable ?? true,
+      isPopular: isPopular ?? false, allergens: allergens ?? null,
+      tags: Array.isArray(tags) ? tags : (tags ? [tags] : null),
+      prepTimeMinutes: prepTimeMinutes ? Number(prepTimeMinutes) : null,
+      calories: calories ? Number(calories) : null,
+    }).returning();
+    res.status(201).json(item);
+  } catch (err) { next(err); }
+});
+
+router.patch("/backend/products/:id", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+    const [existing] = await db.select().from(menuItemsTable).where(eq(menuItemsTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+    const scoped = await getScopedShopIds(ctx.id, ctx.role, ctx.assignedShopId);
+    if (scoped !== null && !scoped.includes(existing.restaurantId)) {
+      res.status(403).json({ error: "Forbidden: not your restaurant" }); return;
+    }
+    const allowed = ["name", "description", "price", "category", "imageUrl", "isAvailable", "isPopular", "allergens", "tags", "prepTimeMinutes", "calories"];
+    const updates: Record<string, unknown> = {};
+    for (const k of allowed) if ((req.body || {})[k] !== undefined) updates[k] = req.body[k];
+    const [item] = await db.update(menuItemsTable).set(updates as any).where(eq(menuItemsTable.id, id)).returning();
+    if (!item) { res.status(404).json({ error: "Not found" }); return; }
+    res.json(item);
+  } catch (err) { next(err); }
+});
+
+router.delete("/backend/products/:id", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+    const [existing] = await db.select().from(menuItemsTable).where(eq(menuItemsTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+    const scoped = await getScopedShopIds(ctx.id, ctx.role, ctx.assignedShopId);
+    if (scoped !== null && !scoped.includes(existing.restaurantId)) {
+      res.status(403).json({ error: "Forbidden: not your restaurant" }); return;
+    }
+    await db.delete(menuItemsTable).where(eq(menuItemsTable.id, id));
+    res.status(204).end();
+  } catch (err: any) {
+    if (err?.code === "23503") { res.status(409).json({ error: "Impossible de supprimer: produit référencé par des commandes. Marquez-le indisponible." }); return; }
+    next(err);
+  }
+});
+
 // ---------- Shops ----------
 router.get("/backend/shops", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const ctx = await requireBackendUser(req, res);
@@ -374,6 +441,68 @@ router.get("/backend/shops", requireAuth, async (req: AuthedRequest, res): Promi
   const where = conds.length ? and(...conds) : undefined;
   const rows = await db.select().from(restaurantsTable).where(where).orderBy(desc(restaurantsTable.createdAt));
   res.json(rows);
+});
+
+// POST /backend/shops — create a shop (admin only)
+router.post("/backend/shops", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+  if (!["super_admin", "admin"].includes(ctx.role)) { res.status(403).json({ error: "Forbidden" }); return; }
+  try {
+    const { name, description, address, phone, category, imageUrl, logoUrl, coverImageUrl, deliveryTime, deliveryFee, minimumOrder, ownerId, isOpen, businessType } = req.body || {};
+    if (!name || !address) { res.status(400).json({ error: "name et address requis" }); return; }
+    const [shop] = await db.insert(restaurantsTable).values({
+      name, description: description ?? null, address,
+      phone: phone ?? null, category: category ?? "restaurant",
+      imageUrl: imageUrl ?? null, logoUrl: logoUrl ?? null, coverImageUrl: coverImageUrl ?? null,
+      deliveryTime: deliveryTime ? Number(deliveryTime) : null,
+      deliveryFee: deliveryFee ? Number(deliveryFee) : null,
+      minimumOrder: minimumOrder ? Number(minimumOrder) : null,
+      ownerId: ownerId ? Number(ownerId) : (ctx.id),
+      isOpen: isOpen ?? true,
+      businessType: businessType ?? "restaurant",
+    }).returning();
+    res.status(201).json(shop);
+  } catch (err) { next(err); }
+});
+
+// PATCH /backend/shops/:id — profile edit (admin: anything; restaurant_owner: own shop only)
+router.patch("/backend/shops/:id", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+    const scoped = await getScopedShopIds(ctx.id, ctx.role, ctx.assignedShopId);
+    if (scoped !== null && !scoped.includes(id)) {
+      res.status(403).json({ error: "Forbidden: not your restaurant" }); return;
+    }
+    const adminAllowed = ["name", "description", "address", "phone", "category", "imageUrl", "logoUrl", "coverImageUrl", "deliveryTime", "deliveryFee", "minimumOrder", "isOpen", "ownerId", "isVerified", "businessType"];
+    const ownerAllowed = ["name", "description", "address", "phone", "category", "imageUrl", "logoUrl", "coverImageUrl", "deliveryTime", "deliveryFee", "minimumOrder", "isOpen", "businessType"];
+    const allowed = ctx.role === "restaurant_owner" ? ownerAllowed : adminAllowed;
+    const updates: Record<string, unknown> = {};
+    for (const k of allowed) if ((req.body || {})[k] !== undefined) updates[k] = req.body[k];
+    if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No valid fields to update" }); return; }
+    const [shop] = await db.update(restaurantsTable).set(updates as any).where(eq(restaurantsTable.id, id)).returning();
+    if (!shop) { res.status(404).json({ error: "Not found" }); return; }
+    res.json(shop);
+  } catch (err) { next(err); }
+});
+
+// DELETE /backend/shops/:id — admin only
+router.delete("/backend/shops/:id", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+  if (!["super_admin", "admin"].includes(ctx.role)) { res.status(403).json({ error: "Forbidden" }); return; }
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+    await db.delete(restaurantsTable).where(eq(restaurantsTable.id, id));
+    res.status(204).end();
+  } catch (err: any) {
+    if (err?.code === "23503") { res.status(409).json({ error: "Cette boutique est référencée par des commandes existantes" }); return; }
+    next(err);
+  }
 });
 
 // ---------- Staff ----------
@@ -665,6 +794,24 @@ router.get("/backend/reviews", requireAuth, async (req: AuthedRequest, res): Pro
   const where = conds.length ? and(...conds) : undefined;
   const rows = await db.select().from(reviewsTable).where(where).orderBy(desc(reviewsTable.createdAt)).limit(200);
   res.json(rows);
+});
+
+// DELETE /backend/reviews/:id — admin/super_admin or restaurant_owner (own shop's reviews)
+router.delete("/backend/reviews/:id", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+    const [review] = await db.select().from(reviewsTable).where(eq(reviewsTable.id, id)).limit(1);
+    if (!review) { res.status(404).json({ error: "Not found" }); return; }
+    const scoped = await getScopedShopIds(ctx.id, ctx.role, ctx.assignedShopId);
+    if (scoped !== null && (review.restaurantId == null || !scoped.includes(review.restaurantId))) {
+      res.status(403).json({ error: "Forbidden" }); return;
+    }
+    await db.delete(reviewsTable).where(eq(reviewsTable.id, id));
+    res.status(204).end();
+  } catch (err) { next(err); }
 });
 
 // ---------- Categories ----------

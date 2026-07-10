@@ -3,9 +3,6 @@ import {
   useListBackendShops,
   useListBackendStaff,
   useBackendMe,
-  useCreateRestaurant,
-  useUpdateRestaurant,
-  useDeleteRestaurant,
   getListBackendShopsQueryKey,
 } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -21,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 
 const DAY_LABELS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
@@ -40,12 +37,10 @@ export default function Shops() {
   const { data: me } = useBackendMe();
   const { data: shops, isLoading } = useListBackendShops({ search: search || undefined });
   const { data: staff } = useListBackendStaff();
-  const create = useCreateRestaurant();
-  const update = useUpdateRestaurant();
-  const del = useDeleteRestaurant();
   const qc = useQueryClient();
   const { toast } = useToast();
   const isAdmin = me?.user.role === "admin" || me?.user.role === "super_admin";
+  const isOwner = me?.user.role === "restaurant_owner";
   const ownerCandidates = (staff || []).filter((u: any) => u.role === "restaurant_owner" || u.role === "admin" || u.role === "super_admin");
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -90,12 +85,27 @@ export default function Shops() {
     ownerId: f.ownerId ? Number(f.ownerId) : undefined,
   });
 
+  const createMutation = useMutation({
+    mutationFn: (payload: any) => apiFetch("/api/backend/shops", { method: "POST", body: JSON.stringify(payload) }),
+    onSuccess: () => { invalidate(); setCreateOpen(false); setForm(EMPTY); toast({ title: "Boutique créée" }); },
+    onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) => apiFetch(`/api/backend/shops/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    onSuccess: () => { invalidate(); setEditing(null); toast({ title: "Boutique modifiée" }); },
+    onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiFetch(`/api/backend/shops/${id}`, { method: "DELETE" }),
+    onSuccess: () => { invalidate(); toast({ title: "Supprimée" }); },
+    onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+  });
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    create.mutate({ data: buildBody(form) as any }, {
-      onSuccess: () => { invalidate(); setCreateOpen(false); setForm(EMPTY); toast({ title: "Boutique créée" }); },
-      onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
-    });
+    createMutation.mutate(buildBody(form));
   };
 
   const openEdit = (s: any) => {
@@ -113,28 +123,27 @@ export default function Shops() {
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editing) return;
-    update.mutate({ id: editing.id, data: { ...buildBody(editForm), isOpen: editForm.isOpen } as any }, {
-      onSuccess: () => { invalidate(); setEditing(null); toast({ title: "Boutique modifiée" }); },
-      onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
-    });
+    updateMutation.mutate({ id: editing.id, data: { ...buildBody(editForm), isOpen: editForm.isOpen } });
   };
 
   const handleDelete = (id: number) => {
     if (!confirm("Supprimer cette boutique ?")) return;
-    del.mutate({ id }, { onSuccess: () => { invalidate(); toast({ title: "Supprimée" }); } });
+    deleteMutation.mutate(id);
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Boutiques</h1>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild><Button className="gap-2"><Plus className="h-4 w-4" /> Nouvelle boutique</Button></DialogTrigger>
-          <DialogContent className="sm:max-w-2xl sm:max-h-[85vh] sm:overflow-y-auto">
-            <DialogHeader><DialogTitle>Créer une boutique</DialogTitle></DialogHeader>
-            <ShopForm form={form} setForm={setForm} onSubmit={handleCreate} pending={create.isPending} submitLabel="Créer" ownerCandidates={ownerCandidates} isAdmin={isAdmin} />
-          </DialogContent>
-        </Dialog>
+        {isAdmin && (
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild><Button className="gap-2"><Plus className="h-4 w-4" /> Nouvelle boutique</Button></DialogTrigger>
+            <DialogContent className="sm:max-w-2xl sm:max-h-[85vh] sm:overflow-y-auto">
+              <DialogHeader><DialogTitle>Créer une boutique</DialogTitle></DialogHeader>
+              <ShopForm form={form} setForm={setForm} onSubmit={handleCreate} pending={createMutation.isPending} submitLabel="Créer" ownerCandidates={ownerCandidates} isAdmin={isAdmin} />
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <Card>
@@ -194,7 +203,7 @@ export default function Shops() {
                   <TableCell className="text-right space-x-1">
                     <Button variant="ghost" size="icon" className="h-10 w-10" title="Horaires" onClick={() => openHours(shop.id)}><Clock className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" className="h-10 w-10" onClick={() => openEdit(shop)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive hover:bg-destructive/10" onClick={() => handleDelete(shop.id)}><Trash2 className="h-4 w-4" /></Button>
+                    {isAdmin && <Button variant="ghost" size="icon" className="h-10 w-10 text-destructive hover:bg-destructive/10" onClick={() => handleDelete(shop.id)}><Trash2 className="h-4 w-4" /></Button>}
                   </TableCell>
                 </TableRow>
               ))}
@@ -237,7 +246,7 @@ export default function Shops() {
           <DialogHeader><DialogTitle>Modifier {editing?.name}</DialogTitle></DialogHeader>
           {editing && (
             <ShopForm
-              form={editForm} setForm={setEditForm} onSubmit={handleUpdate} pending={update.isPending} submitLabel="Enregistrer"
+              form={editForm} setForm={setEditForm} onSubmit={handleUpdate} pending={updateMutation.isPending} submitLabel="Enregistrer"
               ownerCandidates={ownerCandidates} isAdmin={isAdmin}
               extra={
                 <div className="flex items-center gap-2">

@@ -50,9 +50,16 @@ type NavItem = {
   href: string;
   label: string;
   icon: React.ElementType;
+  /** Roles allowed to see this item. If omitted, all authenticated roles can see it. */
   roles?: string[];
   hidden?: boolean;
 };
+
+/**
+ * All roles that are considered "admin-level" (not restaurant_owner).
+ * restaurant_owner is intentionally excluded — they only see their shop's pages.
+ */
+const ADMIN_ROLES = ["super_admin", "admin", "manager"];
 
 const navGroups: NavGroup[] = [
   {
@@ -62,44 +69,49 @@ const navGroups: NavGroup[] = [
   {
     label: "Operations",
     items: [
-      { href: "/orders", label: "Orders", icon: ShoppingCart, roles: ["super_admin", "admin", "manager", "restaurant_owner"] },
-      { href: "/products", label: "Products", icon: Package, roles: ["super_admin", "admin", "manager", "restaurant_owner"] },
-      { href: "/categories", label: "Categories", icon: Tags, roles: ["super_admin", "admin", "manager", "restaurant_owner"] },
-      { href: "/shops", label: "Shops", icon: Store, roles: ["super_admin", "admin", "manager", "restaurant_owner"] },
-      { href: "/reviews", label: "Reviews", icon: Star, roles: ["super_admin", "admin", "manager", "restaurant_owner"] },
+      { href: "/orders", label: "Orders", icon: ShoppingCart },
+      { href: "/products", label: "Products", icon: Package },
+      { href: "/categories", label: "Categories", icon: Tags },
+      {
+        href: "/shops",
+        label: "Shops",
+        icon: Store,
+        // restaurant_owner sees their own shop profile via /shops
+      },
+      { href: "/reviews", label: "Reviews", icon: Star },
     ],
   },
   {
     label: "People",
     items: [
-      { href: "/customers", label: "Customers", icon: Users, roles: ["super_admin", "admin", "manager"] },
-      { href: "/staff", label: "Staff", icon: UserCog },
-      { href: "/deliverymen", label: "Delivery", icon: Truck, roles: ["super_admin", "admin", "manager"] },
+      { href: "/customers", label: "Customers", icon: Users, roles: ADMIN_ROLES },
+      { href: "/staff", label: "Staff", icon: UserCog, roles: ADMIN_ROLES },
+      { href: "/deliverymen", label: "Delivery", icon: Truck, roles: ADMIN_ROLES },
     ],
   },
   {
     label: "Marketing",
     items: [
-      { href: "/promotions", label: "Promotions", icon: Tags, roles: ["super_admin", "admin", "manager"] },
-      { href: "/banners", label: "Bannières", icon: Image, roles: ["super_admin", "admin", "manager"] },
-      { href: "/vouchers", label: "Vouchers", icon: TicketPercent, roles: ["super_admin", "admin", "manager"] },
-      { href: "/notifications", label: "Notifications", icon: Bell, roles: ["super_admin", "admin", "manager"] },
+      { href: "/promotions", label: "Promotions", icon: Tags },
+      { href: "/banners", label: "Bannières", icon: Image, roles: ADMIN_ROLES },
+      { href: "/vouchers", label: "Vouchers", icon: TicketPercent },
+      { href: "/notifications", label: "Notifications", icon: Bell, roles: ADMIN_ROLES },
     ],
   },
   {
     label: "Finance",
     items: [
-      { href: "/wallets", label: "Wallets", icon: Wallet, roles: ["super_admin", "admin", "manager"] },
-      { href: "/reports", label: "Reports", icon: BarChart3, roles: ["super_admin", "admin", "manager"] },
+      { href: "/wallets", label: "Wallets", icon: Wallet, roles: ADMIN_ROLES },
+      { href: "/reports", label: "Reports", icon: BarChart3 },
     ],
   },
   {
     label: "System",
     items: [
       { href: "/roles", label: "Roles", icon: Shield, roles: ["super_admin"] },
-      { href: "/audit", label: "Audit", icon: Activity, roles: ["super_admin", "admin"] },
-      { href: "/monitoring", label: "Monitoring", icon: Server, roles: ["super_admin", "admin"] },
-      { href: "/settings", label: "Settings", icon: Settings, roles: ["super_admin", "admin"] },
+      { href: "/audit", label: "Audit", icon: Activity, roles: ADMIN_ROLES },
+      { href: "/monitoring", label: "Monitoring", icon: Server, roles: ADMIN_ROLES },
+      { href: "/settings", label: "Settings", icon: Settings, roles: ADMIN_ROLES },
     ],
   },
 ];
@@ -157,6 +169,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   if (!me) return null;
 
+  const role = me.user.role;
+
   const handleLogout = () => {
     localStorage.removeItem("jatek_backend_token");
     setLocation("/login");
@@ -166,7 +180,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
     .map((group) => ({
       ...group,
       items: group.items.filter(
-        (item) => !item.hidden && (!item.roles || item.roles.includes(me.user.role))
+        (item) =>
+          !item.hidden &&
+          (!item.roles || item.roles.includes(role))
       ),
     }))
     .filter((group) => group.items.length > 0);
@@ -180,7 +196,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         } transition-all duration-300 border-r border-border bg-sidebar flex-col hidden md:flex`}
       >
         <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
-          {sidebarOpen && <span className="font-black text-xl text-primary tracking-tight">Jatek Backend</span>}
+          {sidebarOpen && <span className="font-black text-xl text-primary tracking-tight">Jatek Merchant</span>}
           {!sidebarOpen && <span className="font-black text-xl text-primary tracking-tight mx-auto">J</span>}
           <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)} className="text-sidebar-foreground">
             <Menu className="h-5 w-5" />
@@ -196,7 +212,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <SheetContent side="left" className="w-72 p-0 bg-sidebar border-sidebar-border flex flex-col">
           <SheetHeader className="h-16 shrink-0 flex flex-row items-center justify-start px-6 border-b border-sidebar-border space-y-0">
             <SheetTitle className="font-black text-xl text-primary tracking-tight text-left">
-              Jatek Backend
+              Jatek Merchant
             </SheetTitle>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto min-h-0 py-4">

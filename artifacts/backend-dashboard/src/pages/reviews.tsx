@@ -1,25 +1,33 @@
-import { useListBackendReviews, useDeleteReview, getListBackendReviewsQueryKey } from "@workspace/api-client-react";
+import { useListBackendReviews, useBackendMe, getListBackendReviewsQueryKey } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Star, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/api";
 
 export default function Reviews() {
+  const { data: me } = useBackendMe();
   const { data: reviews, isLoading } = useListBackendReviews({});
-  const del = useDeleteReview();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const isAdmin = me?.user.role === "admin" || me?.user.role === "super_admin";
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiFetch(`/api/backend/reviews/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: getListBackendReviewsQueryKey() });
+      toast({ title: "Avis supprimé" });
+    },
+    onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+  });
 
   const handleDelete = (id: number) => {
     if (!confirm("Supprimer cet avis ?")) return;
-    del.mutate({ id }, {
-      onSuccess: () => { qc.invalidateQueries({ queryKey: getListBackendReviewsQueryKey() }); toast({ title: "Supprimé" }); },
-      onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
-    });
+    deleteMutation.mutate(id);
   };
 
   return (
@@ -59,7 +67,16 @@ export default function Reviews() {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground italic">"{review.comment || "—"}"</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(review.id)}><Trash2 className="h-4 w-4" /></Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDelete(review.id)}
+                      disabled={deleteMutation.isPending}
+                      title="Supprimer cet avis"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

@@ -3,9 +3,6 @@ import {
   useListBackendProducts,
   useListBackendShops,
   useBackendMe,
-  useCreateMenuItem,
-  useUpdateMenuItem,
-  useDeleteMenuItem,
   getListBackendProductsQueryKey,
 } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 
 const EMPTY = { name: "", description: "", price: "", category: "", imageUrl: "", isAvailable: true, isPopular: false, allergens: "", tags: "", prepTimeMinutes: "", calories: "" };
@@ -32,9 +29,6 @@ export default function Products() {
   const { data: me } = useBackendMe();
   const { data: products, isLoading } = useListBackendProducts({ search: search || undefined });
   const { data: shops } = useListBackendShops({});
-  const create = useCreateMenuItem();
-  const update = useUpdateMenuItem();
-  const del = useDeleteMenuItem();
   const qc = useQueryClient();
   const { toast } = useToast();
   const isOwner = me?.user.role === "restaurant_owner";
@@ -51,20 +45,33 @@ export default function Products() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: getListBackendProductsQueryKey() });
 
+  const createMutation = useMutation({
+    mutationFn: (payload: any) => apiFetch("/api/backend/products", { method: "POST", body: JSON.stringify(payload) }),
+    onSuccess: () => { invalidate(); setCreateOpen(false); setForm(EMPTY); setShopId(""); toast({ title: "Produit créé" }); },
+    onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) => apiFetch(`/api/backend/products/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    onSuccess: () => { invalidate(); setEditing(null); toast({ title: "Modifié" }); },
+    onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiFetch(`/api/backend/products/${id}`, { method: "DELETE" }),
+    onSuccess: () => { invalidate(); toast({ title: "Supprimé" }); },
+    onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+  });
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!shopId) { toast({ title: "Choisissez une boutique", variant: "destructive" }); return; }
-    create.mutate({
+    createMutation.mutate({
       restaurantId: Number(shopId),
-      data: {
-        name: form.name, description: form.description || undefined,
-        price: Number(form.price), category: form.category,
-        imageUrl: form.imageUrl || undefined,
-        isAvailable: form.isAvailable, isPopular: form.isPopular,
-      } as any,
-    }, {
-      onSuccess: () => { invalidate(); setCreateOpen(false); setForm(EMPTY); setShopId(""); toast({ title: "Produit créé" }); },
-      onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+      name: form.name, description: form.description || undefined,
+      price: Number(form.price), category: form.category,
+      imageUrl: form.imageUrl || undefined,
+      isAvailable: form.isAvailable, isPopular: form.isPopular,
     });
   };
 
@@ -74,30 +81,28 @@ export default function Products() {
       name: p.name, description: p.description ?? "", price: String(p.price),
       category: p.category, imageUrl: p.imageUrl ?? "",
       isAvailable: p.isAvailable, isPopular: p.isPopular,
+      allergens: p.allergens ?? "", tags: "", prepTimeMinutes: "", calories: "",
     });
   };
 
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editing) return;
-    update.mutate({ id: editing.id, data: {
+    updateMutation.mutate({ id: editing.id, data: {
       name: editForm.name, description: editForm.description || undefined,
       price: Number(editForm.price), category: editForm.category,
       imageUrl: editForm.imageUrl || undefined,
       isAvailable: editForm.isAvailable, isPopular: editForm.isPopular,
-    } as any }, {
-      onSuccess: () => { invalidate(); setEditing(null); toast({ title: "Modifié" }); },
-      onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
-    });
+    }});
   };
 
   const handleToggle = (p: any, isAvailable: boolean) => {
-    update.mutate({ id: p.id, data: { isAvailable } }, { onSuccess: invalidate });
+    updateMutation.mutate({ id: p.id, data: { isAvailable } });
   };
 
   const handleDelete = (id: number) => {
     if (!confirm("Supprimer ce produit ?")) return;
-    del.mutate({ id }, { onSuccess: () => { invalidate(); toast({ title: "Supprimé" }); } });
+    deleteMutation.mutate(id);
   };
 
   return (
@@ -110,13 +115,13 @@ export default function Products() {
             <DialogHeader><DialogTitle>Créer un produit</DialogTitle></DialogHeader>
             <form onSubmit={handleCreate} className="space-y-3 pt-4">
               <Field label="Boutique">
-                <Select value={shopId} onValueChange={setShopId} disabled={isOwner}>
+                <Select value={shopId} onValueChange={setShopId} disabled={isOwner && scopedShopIds.length === 1}>
                   <SelectTrigger><SelectValue placeholder={isOwner ? "Votre boutique" : "Choisir une boutique"} /></SelectTrigger>
                   <SelectContent>{visibleShops.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
               <ProductFields form={form} setForm={setForm} />
-              <DialogFooter className="pt-4"><Button type="submit" disabled={create.isPending}>{create.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Créer</Button></DialogFooter>
+              <DialogFooter className="pt-4"><Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Créer</Button></DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
@@ -180,7 +185,7 @@ export default function Products() {
           {editing && (
             <form onSubmit={handleUpdate} className="space-y-3 pt-4">
               <ProductFields form={editForm} setForm={setEditForm} />
-              <DialogFooter className="pt-4"><Button type="submit" disabled={update.isPending}>{update.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Enregistrer</Button></DialogFooter>
+              <DialogFooter className="pt-4"><Button type="submit" disabled={updateMutation.isPending}>{updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Enregistrer</Button></DialogFooter>
             </form>
           )}
         </DialogContent>
