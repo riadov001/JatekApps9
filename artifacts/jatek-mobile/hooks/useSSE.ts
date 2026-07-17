@@ -129,13 +129,16 @@ export function useSSE({ url, events, enabled = true }: SSEOptions) {
         if (!cancelled && isActive) scheduleReconnect();
       } catch (err: any) {
         if (cancelled) return;
-        // AbortError from cleanup or backgrounding — no retry needed
+        // AbortError from cleanup or backgrounding — only retry if this is
+        // still the active connection. If a newer connect() call has already
+        // taken over (currentController !== controller), do NOT schedule
+        // another reconnect to prevent two parallel connections racing.
         if (err?.name === "AbortError") {
-          if (!cancelled && isActive) scheduleReconnect();
+          if (!cancelled && isActive && currentController === controller) scheduleReconnect();
           return;
         }
-        // Network blip — silently retry
-        scheduleReconnect();
+        // Network blip — silently retry (only if still active connection)
+        if (currentController === controller) scheduleReconnect();
       } finally {
         clearInterval(watchdog);
         if (currentController === controller) currentController = null;

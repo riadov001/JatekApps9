@@ -100,6 +100,7 @@ export default function OtpScreen() {
 
   const handleSaveName = async () => {
     if (!pendingToken || !pendingUser) return;
+    setError("");
     try {
       const baseUrl = getApiBaseSafe();
       const res = await fetch(`${baseUrl}/api/auth/update-name`, {
@@ -107,12 +108,16 @@ export default function OtpScreen() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${pendingToken}` },
         body: JSON.stringify({ name: name.trim() || pendingUser.name }),
       });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        setError((errJson as any)?.error || t("otp_invalid"));
+        return;
+      }
       const json = await res.json();
       await login(pendingToken, json.user ?? pendingUser);
       router.replace("/(tabs)");
     } catch {
-      await login(pendingToken, pendingUser);
-      router.replace("/(tabs)");
+      setError(t("otp_invalid"));
     }
   };
 

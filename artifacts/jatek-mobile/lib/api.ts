@@ -144,16 +144,16 @@ export async function geocodeAddress(address: string): Promise<{ lat: number; ln
 
   try {
     if (googleKey) {
-      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address + ", Oujda, Morocco")}&key=${googleKey}`;
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${googleKey}`;
       const res = await fetch(url, { signal: controller.signal });
       const data = await res.json();
       const loc = data?.results?.[0]?.geometry?.location;
       if (loc?.lat != null && loc?.lng != null) return { lat: loc.lat, lng: loc.lng };
     }
-    const osmUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address + ", Oujda, Morocco")}&limit=1`;
+    const osmUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
     const res = await fetch(osmUrl, {
       signal: controller.signal,
-      headers: { "Accept-Language": "fr", "User-Agent": "Jatek/1.0 (contact@jatek.ma)" },
+      headers: { "User-Agent": "Jatek/1.0 (contact@jatek.ma)" },
     });
     const data = await res.json();
     if (data?.[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
@@ -216,9 +216,9 @@ export async function createSupportTicket(data: { category: string; subject: str
 
 // Notification prefs -------------------------------------------------
 export interface NotifPrefs { pushOrders: boolean; pushPromos: boolean; emailReceipts: boolean; emailNewsletter: boolean; smsAlerts: boolean; language: string; }
-export async function fetchNotifPrefs(): Promise<NotifPrefs> { return jsonFetch("/api/notification-prefs"); }
-export async function updateNotifPrefs(data: Partial<NotifPrefs & { pushToken?: string }>): Promise<NotifPrefs> {
-  return jsonFetch("/api/notification-prefs", { method: "PATCH", body: JSON.stringify(data) });
+export async function fetchNotifPrefs(signal?: AbortSignal): Promise<NotifPrefs> { return jsonFetch("/api/notification-prefs", { signal }); }
+export async function updateNotifPrefs(data: Partial<NotifPrefs & { pushToken?: string }>, signal?: AbortSignal): Promise<NotifPrefs> {
+  return jsonFetch("/api/notification-prefs", { method: "PATCH", body: JSON.stringify(data), signal });
 }
 
 // Notifications inbox -------------------------------------------------

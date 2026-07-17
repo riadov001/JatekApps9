@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import {
   StyleSheet, Text, View, TouchableOpacity, Pressable, Animated,
-  TextInput, ActivityIndicator, Platform, Alert,
+  TextInput, ActivityIndicator, Platform,
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -53,6 +53,17 @@ export default function CartScreen() {
         message: "Connectez-vous pour valider votre commande et profiter de vos points fidélité.",
         primary: { label: "Se connecter", href: "/(auth)/login" },
         secondary: { label: "Plus tard" },
+      });
+      return;
+    }
+    if (!restaurantId) {
+      friendly.show({
+        tone: "error",
+        icon: "alert-circle-outline",
+        title: "Panier invalide",
+        message: "Votre panier ne contient pas de restaurant valide. Videz le panier et recommencez.",
+        primary: { label: "Vider le panier", onPress: () => clearCart() },
+        secondary: { label: "Retour" },
       });
       return;
     }
@@ -203,10 +214,14 @@ export default function CartScreen() {
     <View style={[styles.flex, { backgroundColor: colors.background }]}>
       <CartHeader title={t("cart_title")} insetsTop={insets.top} onBack={() => router.back()} right={(
         <TouchableOpacity onPress={() => {
-          Alert.alert(t("cart_clear_q"), t("cart_clear_text"), [
-            { text: t("cancel") },
-            { text: t("cart_clear"), style: "destructive", onPress: clearCart },
-          ]);
+          friendly.show({
+            tone: "warning",
+            icon: "trash-outline",
+            title: t("cart_clear_q"),
+            message: t("cart_clear_text"),
+            primary: { label: t("cart_clear"), onPress: clearCart },
+            secondary: { label: t("cancel") },
+          });
         }}>
           <Ionicons name="trash-outline" size={22} color="#fff" />
         </TouchableOpacity>

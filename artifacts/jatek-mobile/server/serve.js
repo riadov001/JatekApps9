@@ -131,7 +131,18 @@ const landingPageTemplate = fs.readFileSync(TEMPLATE_PATH, "utf-8");
 const appName = getAppName();
 
 const server = http.createServer((req, res) => {
-  const url = new URL(req.url || "/", `http://${req.headers.host}`);
+  // Guard against missing or malformed Host header (e.g. health-check probes).
+  // new URL() throws synchronously on invalid input, so we wrap it and return
+  // a 400 rather than letting the exception propagate and crash the process.
+  let url;
+  try {
+    const host = req.headers.host || "localhost";
+    url = new URL(req.url || "/", `http://${host}`);
+  } catch {
+    res.writeHead(400, { "content-type": "text/plain" });
+    res.end("Bad Request");
+    return;
+  }
   let pathname = url.pathname;
 
   // Segment-aware basePath stripping: only strip when the URL starts with

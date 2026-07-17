@@ -55,11 +55,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Load persisted auth on startup. SecureStore can throw on Android Expo
     // Go in some environments — never let it block the app from rendering.
     Promise.all([secureGet(TOKEN_KEY), secureGet(USER_KEY)])
-      .then(([t, u]) => {
+      .then(async ([t, u]) => {
         if (t) setToken(t);
         if (u) {
           try { setUser(JSON.parse(u)); }
-          catch (err) { console.warn("[Auth] failed to parse persisted user:", err); }
+          catch (err) {
+            // Corrupted user blob — clear both token and user so the app starts
+            // in a clean "logged out" state instead of an inconsistent one.
+            console.warn("[Auth] failed to parse persisted user, clearing auth:", err);
+            await secureDel(TOKEN_KEY);
+            await secureDel(USER_KEY);
+          }
         }
       })
       .catch((err) => {

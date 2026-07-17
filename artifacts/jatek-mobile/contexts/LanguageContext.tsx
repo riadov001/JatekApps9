@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef, ReactNode, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { I18nManager } from "react-native";
 import { translations, type Lang, type TKey } from "@/lib/translations";
@@ -24,6 +24,8 @@ function format(str: string, vars?: Record<string, string | number>) {
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
   const [lang, setLangState] = useState<Lang>("fr");
+  // AbortController ref for cancelling in-flight language sync requests.
+  const syncCtrl = useRef<AbortController | null>(null);
 
   // Hydrate from local storage immediately, then reconcile with backend.
   useEffect(() => {
@@ -34,8 +36,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!token) return;
-    fetchNotifPrefs()
+    const ctrl = new AbortController();
+    fetchNotifPrefs(ctrl.signal)
       .then((p) => {
+        if (ctrl.signal.aborted) return;
         const v = p.language;
         if (v === "fr" || v === "en" || v === "ar") {
           setLangState(v);
@@ -43,6 +47,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         }
       })
       .catch(() => {});
+    return () => ctrl.abort();
   }, [token]);
 
   // Apply RTL hint (Arabic). We don't force a reload to avoid breaking
@@ -58,7 +63,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLangState(l);
     await AsyncStorage.setItem(STORAGE_KEY, l).catch(() => {});
     if (token) {
-      try { await updateNotifPrefs({ language: l }); } catch {}
+      // Cancel any in-flight language sync so a rapid succession of changes
+      // doesn't leave the server with a stale language value.
+      syncCtrl.current?.abort();
+      const ctrl = new AbortController();
+      syncCtrl.current = ctrl;
+      try { await updateNotifPrefs({ language: l }, ctrl.signal); } catch {}
     }
   }, [token]);
 
