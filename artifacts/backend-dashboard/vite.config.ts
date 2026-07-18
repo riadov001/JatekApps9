@@ -62,8 +62,9 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       "/api": {
-        target: "http://localhost:8080",
+        target: "https://ma.jatek.app",
         changeOrigin: true,
+        secure: true,
       },
     },
     fs: {
