@@ -98,16 +98,17 @@ externalPort = 5173
   [userenv]
 
   [userenv.shared]
-EXPO_PUBLIC_PROJECT_ID = "2437ecfc-9682-4b07-9eaa-77f6206b4714"
 
   [userenv.development]
   INFOBIP_WA_SENDER = "+15072600620"
   EXPO_PUBLIC_DOMAIN = "ma.jatek.app"
+EXPO_PUBLIC_PROJECT_ID = "2437ecfc-9682-4b07-9eaa-77f6206b4714"
 
   [userenv.production]
   INFOBIP_WA_SENDER = "+15072600620"
   EXPO_PUBLIC_DOMAIN = "ma.jatek.app"
 ALLOWED_ORIGINS = "https://c242aedf-c2ef-40b5-8095-e3992aa34a14-00-1y412fgtbqgy8.kirk.replit.dev,https://ma.jatek.app"
+EXPO_PUBLIC_PROJECT_ID = "2437ecfc-9682-4b07-9eaa-77f6206b4714"
 
   [objectStorage]
-  defaultBucketID = "replit-objstore-da72a41c-10aa-4e77-9354-01883c790dff"
+defaultBucketID = "replit-objstore-ebebe30b-ff72-4fb3-ba09-6cc0a2a4e98f"
