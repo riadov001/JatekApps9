@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, categoriesTable, adsTable, shortsTable } from "@workspace/db";
-import { eq, asc, and } from "drizzle-orm";
+import { db, categoriesTable, menuItemCategoriesTable, adsTable, shortsTable } from "@workspace/db";
+import { eq, asc, and, or, sql } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -17,6 +17,33 @@ router.get("/categories", async (_req, res): Promise<void> => {
     subCategories: all.filter((c) => c.parentId === p.id),
   }));
   res.json(result);
+});
+
+// ─────────────────────────────────────────────────────────────
+// Menu-item categories (public read)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/menu-categories?restaurantId=X
+ * Returns global categories + categories owned by restaurantId (if provided).
+ * Used by the client app to populate the category filter.
+ */
+router.get("/menu-categories", async (req, res): Promise<void> => {
+  const rid = req.query.restaurantId ? Number(req.query.restaurantId) : null;
+  const condition = rid !== null
+    ? and(
+        eq(menuItemCategoriesTable.isActive, true),
+        or(
+          sql`${menuItemCategoriesTable.restaurantId} IS NULL`,
+          eq(menuItemCategoriesTable.restaurantId, rid)
+        )
+      )
+    : eq(menuItemCategoriesTable.isActive, true);
+
+  const rows = await db.select().from(menuItemCategoriesTable)
+    .where(condition)
+    .orderBy(asc(menuItemCategoriesTable.sortOrder), asc(menuItemCategoriesTable.name));
+  res.json(rows);
 });
 
 // ─────────────────────────────────────────────────────────────

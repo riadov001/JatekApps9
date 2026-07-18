@@ -24,6 +24,15 @@ import { apiFetch } from "@/lib/api";
 
 const EMPTY = { name: "", description: "", price: "", category: "", imageUrl: "", isAvailable: true, isPopular: false, allergens: "", tags: "", prepTimeMinutes: "", calories: "" };
 
+type ProductCat = { id: number; restaurantId: number | null; name: string };
+function useProductCategories(restaurantId: string | number | undefined) {
+  return useQuery<ProductCat[]>({
+    queryKey: ["/api/backend/menu-categories", String(restaurantId ?? "")],
+    queryFn: () => apiFetch(`/api/backend/menu-categories${restaurantId ? `?restaurantId=${restaurantId}` : ""}`),
+    enabled: restaurantId !== undefined,
+  });
+}
+
 export default function Products() {
   const [search, setSearch] = useState("");
   const { data: me } = useBackendMe();
@@ -120,7 +129,7 @@ export default function Products() {
                   <SelectContent>{visibleShops.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
-              <ProductFields form={form} setForm={setForm} />
+              <ProductFields form={form} setForm={setForm} restaurantId={shopId || undefined} />
               <DialogFooter className="pt-4"><Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Créer</Button></DialogFooter>
             </form>
           </DialogContent>
@@ -184,7 +193,7 @@ export default function Products() {
           <DialogHeader><DialogTitle>Modifier {editing?.name}</DialogTitle></DialogHeader>
           {editing && (
             <form onSubmit={handleUpdate} className="space-y-3 pt-4">
-              <ProductFields form={editForm} setForm={setEditForm} />
+              <ProductFields form={editForm} setForm={setEditForm} restaurantId={editing?.restaurantId} />
               <DialogFooter className="pt-4"><Button type="submit" disabled={updateMutation.isPending}>{updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Enregistrer</Button></DialogFooter>
             </form>
           )}
@@ -196,13 +205,29 @@ export default function Products() {
   );
 }
 
-function ProductFields({ form, setForm }: any) {
+function ProductFields({ form, setForm, restaurantId }: { form: any; setForm: any; restaurantId?: string | number }) {
   const set = (k: string, v: any) => setForm({ ...form, [k]: v });
+  const { data: productCats } = useProductCategories(restaurantId);
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Nom"><Input required value={form.name} onChange={(e: any) => set("name", e.target.value)} /></Field>
-        <Field label="Catégorie"><Input required value={form.category} onChange={(e: any) => set("category", e.target.value)} /></Field>
+        <Field label="Catégorie">
+          {productCats && productCats.length > 0 ? (
+            <Select value={form.category} onValueChange={(v) => set("category", v)} required>
+              <SelectTrigger><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
+              <SelectContent>
+                {productCats.map((c) => (
+                  <SelectItem key={c.id} value={c.name}>
+                    {c.name}{c.restaurantId !== null ? " ★" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input required value={form.category} onChange={(e: any) => set("category", e.target.value)} placeholder="Catégorie" />
+          )}
+        </Field>
         <Field label="Prix (DH)"><Input required type="number" step="0.01" value={form.price} onChange={(e: any) => set("price", e.target.value)} /></Field>
         <Field label="Image (URL)"><Input value={form.imageUrl} onChange={(e: any) => set("imageUrl", e.target.value)} /></Field>
       </div>

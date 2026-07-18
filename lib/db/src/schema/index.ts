@@ -15,6 +15,7 @@ export * from "./userConsents";
 export * from "./quotes";
 export * from "./dashboardTodos";
 export * from "./categories";
+export * from "./menuItemCategories";
 export * from "./ads";
 export * from "./shorts";
 export * from "./promoCodes";

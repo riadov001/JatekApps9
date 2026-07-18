@@ -8,6 +8,7 @@ import {
   ordersTable,
   orderItemsTable,
   menuItemsTable,
+  menuItemCategoriesTable,
   driversTable,
   reviewsTable,
   dashboardTodosTable,
@@ -423,6 +424,139 @@ router.delete("/backend/products/:id", requireAuth, async (req: AuthedRequest, r
     if (err?.code === "23503") { res.status(409).json({ error: "Impossible de supprimer: produit référencé par des commandes. Marquez-le indisponible." }); return; }
     next(err);
   }
+});
+
+// ---------- Menu-item categories ----------
+
+/**
+ * GET /backend/menu-categories?restaurantId=X
+ * Returns global categories (restaurantId IS NULL) plus any owned by `restaurantId`.
+ * Accessible to all authenticated backend users (admin sees all; owner sees own + global).
+ */
+router.get("/backend/menu-categories", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+
+  const scoped = await getScopedShopIds(ctx.id, ctx.role, ctx.assignedShopId);
+  const rid = req.query.restaurantId ? Number(req.query.restaurantId) : null;
+
+  // Owner can only query their own restaurant's categories
+  if (scoped !== null && rid !== null && !scoped.includes(rid)) {
+    res.status(403).json({ error: "Forbidden: not your restaurant" }); return;
+  }
+
+  let rows;
+  if (rid !== null) {
+    // Global + restaurant-specific
+    rows = await db.select().from(menuItemCategoriesTable)
+      .where(and(
+        eq(menuItemCategoriesTable.isActive, true),
+        or(
+          sql`${menuItemCategoriesTable.restaurantId} IS NULL`,
+          eq(menuItemCategoriesTable.restaurantId, rid)
+        )
+      ))
+      .orderBy(menuItemCategoriesTable.sortOrder, menuItemCategoriesTable.name);
+  } else if (scoped === null) {
+    // Admin with no restaurantId filter → return everything
+    rows = await db.select().from(menuItemCategoriesTable)
+      .orderBy(menuItemCategoriesTable.restaurantId, menuItemCategoriesTable.sortOrder);
+  } else {
+    // Owner with no restaurantId → return their restaurants' categories + global
+    if (scoped.length === 0) { res.json([]); return; }
+    rows = await db.select().from(menuItemCategoriesTable)
+      .where(or(
+        sql`${menuItemCategoriesTable.restaurantId} IS NULL`,
+        inArray(menuItemCategoriesTable.restaurantId, scoped)
+      ))
+      .orderBy(menuItemCategoriesTable.sortOrder, menuItemCategoriesTable.name);
+  }
+  res.json(rows);
+});
+
+/**
+ * POST /backend/menu-categories
+ * Admin: can create global (restaurantId omitted/null) or restaurant-specific.
+ * Owner: must supply their own restaurantId; cannot create global.
+ */
+router.post("/backend/menu-categories", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+  try {
+    const { name, restaurantId, sortOrder, isActive } = req.body ?? {};
+    if (!name || typeof name !== "string" || !name.trim()) {
+      res.status(400).json({ error: "name requis" }); return;
+    }
+    const scoped = await getScopedShopIds(ctx.id, ctx.role, ctx.assignedShopId);
+    const rid: number | null = restaurantId ? Number(restaurantId) : null;
+
+    if (scoped !== null) {
+      // Owner must supply a restaurantId that belongs to them
+      if (rid === null) { res.status(403).json({ error: "Les commerçants ne peuvent pas créer de catégories globales" }); return; }
+      if (!scoped.includes(rid)) { res.status(403).json({ error: "Forbidden: not your restaurant" }); return; }
+    }
+
+    const [row] = await db.insert(menuItemCategoriesTable).values({
+      name: name.trim(),
+      restaurantId: rid,
+      sortOrder: sortOrder !== undefined ? Number(sortOrder) : 0,
+      isActive: isActive !== false,
+    }).returning();
+    res.status(201).json(row);
+  } catch (err) { next(err); }
+});
+
+/**
+ * PATCH /backend/menu-categories/:id
+ * Admin: can edit any. Owner: can edit only their restaurant-scoped categories.
+ */
+router.patch("/backend/menu-categories/:id", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+    const [existing] = await db.select().from(menuItemCategoriesTable).where(eq(menuItemCategoriesTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+
+    const scoped = await getScopedShopIds(ctx.id, ctx.role, ctx.assignedShopId);
+    if (scoped !== null) {
+      // Owners cannot edit global categories
+      if (existing.restaurantId === null) { res.status(403).json({ error: "Impossible de modifier une catégorie globale" }); return; }
+      if (!scoped.includes(existing.restaurantId)) { res.status(403).json({ error: "Forbidden: not your restaurant" }); return; }
+    }
+
+    const updates: Record<string, unknown> = {};
+    const allowed = ["name", "sortOrder", "isActive"];
+    for (const k of allowed) if ((req.body ?? {})[k] !== undefined) updates[k] = req.body[k];
+    if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No valid fields" }); return; }
+    const [row] = await db.update(menuItemCategoriesTable).set(updates as any).where(eq(menuItemCategoriesTable.id, id)).returning();
+    res.json(row);
+  } catch (err) { next(err); }
+});
+
+/**
+ * DELETE /backend/menu-categories/:id
+ * Admin: can delete any. Owner: only their own restaurant-scoped categories.
+ */
+router.delete("/backend/menu-categories/:id", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+    const [existing] = await db.select().from(menuItemCategoriesTable).where(eq(menuItemCategoriesTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+
+    const scoped = await getScopedShopIds(ctx.id, ctx.role, ctx.assignedShopId);
+    if (scoped !== null) {
+      if (existing.restaurantId === null) { res.status(403).json({ error: "Impossible de supprimer une catégorie globale" }); return; }
+      if (!scoped.includes(existing.restaurantId)) { res.status(403).json({ error: "Forbidden: not your restaurant" }); return; }
+    }
+
+    await db.delete(menuItemCategoriesTable).where(eq(menuItemCategoriesTable.id, id));
+    res.status(204).end();
+  } catch (err) { next(err); }
 });
 
 // ---------- Shops ----------
