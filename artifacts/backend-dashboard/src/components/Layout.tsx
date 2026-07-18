@@ -21,6 +21,7 @@ import {
   Image,
   Activity,
   Server,
+  Radio,
 } from "lucide-react";
 import { useBackendMe } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -108,6 +109,7 @@ const navGroups: NavGroup[] = [
   {
     label: "System",
     items: [
+      { href: "/live-tracking", label: "Suivi Live", icon: Radio, roles: ADMIN_ROLES },
       { href: "/roles", label: "Roles", icon: Shield, roles: ["super_admin"] },
       { href: "/audit", label: "Audit", icon: Activity, roles: ADMIN_ROLES },
       { href: "/monitoring", label: "Monitoring", icon: Server, roles: ADMIN_ROLES },

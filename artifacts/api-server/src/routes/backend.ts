@@ -13,10 +13,12 @@ import {
   reviewsTable,
   dashboardTodosTable,
   categoriesTable,
+  platformSettingsTable,
 } from "@workspace/db";
 import { eq, inArray, count, sum, gte, ilike, and, or, desc, sql } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../middlewares/auth";
 import { sendOtpMessage } from "../lib/otpMessaging";
+import * as tracking from "../lib/trackingService";
 
 const router: IRouter = Router();
 
@@ -1194,6 +1196,147 @@ router.get("/backend/wallets", requireAuth, async (req: AuthedRequest, res): Pro
         totalEarnings: Number(r.totalEarnings ?? 0),
       };
     }),
+  });
+});
+
+// ---------- Platform Settings ----------
+const DEFAULT_SETTINGS = {
+  appName: "Jatek",
+  supportEmail: "support@jatek.ma",
+  supportPhone: "+212600000000",
+  defaultDeliveryFee: "15",
+  maxDeliveryRadiusKm: "10",
+  minOrderAmount: "30",
+  orderNotificationsEnabled: true,
+  maintenanceMode: false,
+  city: "Oujda",
+  currency: "MAD",
+};
+
+router.get("/backend/settings", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+  try {
+    const [row] = await db.select().from(platformSettingsTable).limit(1);
+    res.json(row ? { ...DEFAULT_SETTINGS, ...(row.data as object) } : DEFAULT_SETTINGS);
+  } catch {
+    res.json(DEFAULT_SETTINGS);
+  }
+});
+
+router.put("/backend/settings", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+  if (!["super_admin", "admin"].includes(ctx.role)) {
+    res.status(403).json({ error: "Forbidden: admin only" }); return;
+  }
+  try {
+    const data = req.body ?? {};
+    const [existing] = await db.select().from(platformSettingsTable).limit(1);
+    if (existing) {
+      const [updated] = await db.update(platformSettingsTable)
+        .set({ data: { ...DEFAULT_SETTINGS, ...(existing.data as object), ...data }, updatedAt: new Date() })
+        .where(eq(platformSettingsTable.id, existing.id))
+        .returning();
+      res.json(updated.data);
+    } else {
+      const [created] = await db.insert(platformSettingsTable)
+        .values({ data: { ...DEFAULT_SETTINGS, ...data } })
+        .returning();
+      res.json(created.data);
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to save settings" });
+  }
+});
+
+// ---------- Live Tracking ----------
+router.get("/backend/live-tracking", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+
+  const ACTIVE_STATUSES = ["pending", "accepted", "preparing", "ready", "picked_up", "en_route"] as const;
+
+  const activeOrders = await db
+    .select({
+      id: ordersTable.id,
+      reference: ordersTable.reference,
+      status: ordersTable.status,
+      total: ordersTable.total,
+      createdAt: ordersTable.createdAt,
+      deliveryAddress: ordersTable.deliveryAddress,
+      driverId: ordersTable.driverId,
+      restaurantId: ordersTable.restaurantId,
+      userId: ordersTable.userId,
+    })
+    .from(ordersTable)
+    .where(inArray(ordersTable.status, [...ACTIVE_STATUSES]))
+    .orderBy(desc(ordersTable.createdAt))
+    .limit(100);
+
+  if (activeOrders.length === 0) {
+    res.json({ activeOrders: [], onlineDriversCount: 0, totalActiveCount: 0, pendingCount: 0, enRouteCount: 0 });
+    return;
+  }
+
+  // Gather restaurant + user names
+  const restaurantIds = [...new Set(activeOrders.map((o) => o.restaurantId))];
+  const userIds = [...new Set(activeOrders.map((o) => o.userId))];
+  const driverIds = activeOrders.map((o) => o.driverId).filter((id): id is number => id !== null);
+  const uniqueDriverIds = [...new Set(driverIds)];
+
+  const [restaurants, users, drivers] = await Promise.all([
+    restaurantIds.length
+      ? db.select({ id: restaurantsTable.id, name: restaurantsTable.name }).from(restaurantsTable).where(inArray(restaurantsTable.id, restaurantIds))
+      : Promise.resolve([]),
+    userIds.length
+      ? db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(inArray(usersTable.id, userIds))
+      : Promise.resolve([]),
+    uniqueDriverIds.length
+      ? db.select({ id: driversTable.id, name: driversTable.name, phone: driversTable.phone, latitude: driversTable.latitude, longitude: driversTable.longitude }).from(driversTable).where(inArray(driversTable.id, uniqueDriverIds))
+      : Promise.resolve([]),
+  ]);
+
+  const restaurantMap = new Map(restaurants.map((r) => [r.id, r.name]));
+  const userMap = new Map(users.map((u) => [u.id, u.name]));
+  const driverMap = new Map(drivers.map((d) => [d.id, d]));
+
+  // Merge in-memory live tracking data
+  const liveLocations = tracking.getAllLocations();
+  const liveMap = new Map(liveLocations.map((l) => [l.driverId, l]));
+
+  const enriched = activeOrders.map((o) => {
+    const driver = o.driverId ? driverMap.get(o.driverId) ?? null : null;
+    const live = o.driverId ? liveMap.get(o.driverId) ?? null : null;
+    return {
+      id: o.id,
+      reference: o.reference,
+      status: o.status,
+      total: o.total,
+      createdAt: o.createdAt,
+      deliveryAddress: o.deliveryAddress,
+      restaurantName: restaurantMap.get(o.restaurantId) ?? `Restaurant #${o.restaurantId}`,
+      userName: userMap.get(o.userId) ?? `Client #${o.userId}`,
+      driverId: o.driverId,
+      driverName: driver?.name ?? null,
+      driverPhone: driver?.phone ?? null,
+      // Prefer real-time in-memory position; fall back to DB snapshot
+      driverLat: live?.lat ?? driver?.latitude ?? null,
+      driverLng: live?.lng ?? driver?.longitude ?? null,
+      driverLastSeen: live ? live.lastSeen : null,
+      driverIsOnline: live ? live.isOnline : false,
+      eta: live?.eta ?? null,
+    };
+  });
+
+  const onlineDriverIds = new Set(liveLocations.filter((l) => l.isOnline).map((l) => l.driverId));
+
+  res.json({
+    activeOrders: enriched,
+    totalActiveCount: enriched.length,
+    pendingCount: enriched.filter((o) => o.status === "pending").length,
+    enRouteCount: enriched.filter((o) => ["picked_up", "en_route"].includes(o.status)).length,
+    onlineDriversCount: onlineDriverIds.size,
   });
 });
 

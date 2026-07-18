@@ -29,6 +29,7 @@ import SettingsPage from "@/pages/settings";
 import Banners from "@/pages/banners";
 import AuditPage from "@/pages/audit";
 import Monitoring from "@/pages/monitoring";
+import LiveTracking from "@/pages/live-tracking";
 
 const queryClient = new QueryClient();
 
@@ -77,6 +78,7 @@ function Router() {
               <AdminRoute path="/banners" component={Banners} />
               <AdminRoute path="/audit" component={AuditPage} />
               <AdminRoute path="/monitoring" component={Monitoring} />
+              <AdminRoute path="/live-tracking" component={LiveTracking} />
               <AdminRoute path="/settings" component={SettingsPage} />
 
               <Route component={NotFound} />

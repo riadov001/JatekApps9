@@ -99,6 +99,28 @@ export function getState(driverId: number): DriverState | null {
   return drivers.get(driverId) ?? null;
 }
 
+/** Returns all tracked drivers with their current live state (for the admin dashboard). */
+export function getAllLocations(): Array<{
+  driverId: number;
+  lat: number | null;
+  lng: number | null;
+  eta: number | null;
+  lastSeen: number;
+  isOnline: boolean;
+  orderIds: number[];
+}> {
+  const now = Date.now();
+  return Array.from(drivers.values()).map((s) => ({
+    driverId: s.driverId,
+    lat: s.lat,
+    lng: s.lng,
+    eta: s.eta,
+    lastSeen: s.lastSeen,
+    isOnline: now - s.lastSeen <= OFFLINE_THRESHOLD_MS,
+    orderIds: Array.from(s.orderIds),
+  }));
+}
+
 /** Has the driver been seen within `thresholdMs` (default 30s)? */
 export function isOnline(driverId: number, thresholdMs = OFFLINE_THRESHOLD_MS): boolean {
   const s = drivers.get(driverId);

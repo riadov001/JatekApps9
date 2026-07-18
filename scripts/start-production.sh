@@ -7,4 +7,4 @@ echo "[start] Applying DB schema migrations…"
 node artifacts/api-server/scripts/push-prod-schema.mjs
 
 echo "[start] Starting API server on port $PORT…"
-exec node artifacts/api-server/dist/index.mjs
+exec node --max-old-space-size=4096 artifacts/api-server/dist/index.mjs

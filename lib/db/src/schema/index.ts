@@ -25,3 +25,4 @@ export * from "./referrals";
 export * from "./activityLogs";
 export * from "./restaurantHours";
 export * from "./refunds";
+export * from "./platformSettings";

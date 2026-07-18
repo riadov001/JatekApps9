@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,10 +7,11 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Settings, Globe, Truck, Bell, Shield, CheckCircle2 } from "lucide-react";
+import { Settings, Globe, Truck, Bell, Shield, CheckCircle2, Loader2 } from "lucide-react";
 import { useBackendMe } from "@workspace/api-client-react";
-
-const STORAGE_KEY = "jatek_platform_settings";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface PlatformSettings {
   appName: string;
@@ -23,14 +24,6 @@ interface PlatformSettings {
   maintenanceMode: boolean;
   city: string;
   currency: string;
-}
-
-function loadSettings(): PlatformSettings {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...defaultSettings(), ...JSON.parse(raw) };
-  } catch {}
-  return defaultSettings();
 }
 
 function defaultSettings(): PlatformSettings {
@@ -48,7 +41,9 @@ function defaultSettings(): PlatformSettings {
   };
 }
 
-function Section({ title, icon: Icon, description, children }: { title: string; icon: React.ElementType; description?: string; children: React.ReactNode }) {
+function Section({ title, icon: Icon, description, children }: {
+  title: string; icon: React.ElementType; description?: string; children: React.ReactNode;
+}) {
   return (
     <Card>
       <CardHeader>
@@ -63,15 +58,18 @@ function Section({ title, icon: Icon, description, children }: { title: string; 
   );
 }
 
-function Field({ label, value, onChange, type = "text", placeholder, suffix }: {
+function Field({ label, value, onChange, type = "text", placeholder, suffix, disabled }: {
   label: string; value: string; onChange: (v: string) => void;
-  type?: string; placeholder?: string; suffix?: string;
+  type?: string; placeholder?: string; suffix?: string; disabled?: boolean;
 }) {
   return (
     <div className="grid gap-1.5">
       <Label>{label}</Label>
       <div className="flex gap-2 items-center">
-        <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="flex-1" />
+        <Input
+          type={type} value={value} onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder} className="flex-1" disabled={disabled}
+        />
         {suffix && <span className="text-sm text-muted-foreground whitespace-nowrap">{suffix}</span>}
       </div>
     </div>
@@ -80,19 +78,38 @@ function Field({ label, value, onChange, type = "text", placeholder, suffix }: {
 
 export default function SettingsPage() {
   const { data: me } = useBackendMe({});
-  const [settings, setSettings] = useState<PlatformSettings>(loadSettings);
-  const [saved, setSaved] = useState(false);
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const isAdmin = me?.user?.role === "super_admin" || me?.user?.role === "admin";
+
+  const { data: remote, isLoading } = useQuery<PlatformSettings>({
+    queryKey: ["/api/backend/settings"],
+    queryFn: () => apiFetch("/api/backend/settings"),
+  });
+
+  const [settings, setSettings] = useState<PlatformSettings>(defaultSettings);
+
+  // Sync local state when remote data arrives
+  useEffect(() => {
+    if (remote) setSettings(remote);
+  }, [remote]);
+
+  const saveMutation = useMutation({
+    mutationFn: (data: PlatformSettings) =>
+      apiFetch("/api/backend/settings", { method: "PUT", body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/backend/settings"] });
+      toast({ title: "Paramètres sauvegardés ✓" });
+    },
+    onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+  });
 
   const set = (k: keyof PlatformSettings) => (v: string | boolean) =>
     setSettings((p) => ({ ...p, [k]: v }));
 
   const handleSave = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    saveMutation.mutate(settings);
   };
-
-  const isAdmin = me?.user?.role === "super_admin" || me?.user?.role === "admin";
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -105,37 +122,46 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {saved && (
-            <Alert className="py-2 px-3 flex items-center gap-2 w-auto">
-              <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-              <AlertDescription className="text-sm">Paramètres sauvegardés</AlertDescription>
-            </Alert>
-          )}
-          <Button onClick={handleSave} disabled={!isAdmin}>Sauvegarder</Button>
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          <Button onClick={handleSave} disabled={!isAdmin || saveMutation.isPending || isLoading}>
+            {saveMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            Sauvegarder
+          </Button>
         </div>
       </div>
 
       {!isAdmin && (
         <Alert>
           <Shield className="h-4 w-4" />
-          <AlertDescription>Vous avez un accès en lecture seule à ces paramètres. Seuls les super admins et admins peuvent les modifier.</AlertDescription>
+          <AlertDescription>
+            Vous avez un accès en lecture seule à ces paramètres. Seuls les super admins et admins peuvent les modifier.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {saveMutation.isSuccess && (
+        <Alert className="py-2 px-3 flex items-center gap-2 border-green-200 bg-green-50 dark:bg-green-900/10">
+          <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+          <AlertDescription className="text-sm text-green-700 dark:text-green-400">
+            Paramètres sauvegardés avec succès
+          </AlertDescription>
         </Alert>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Section title="Informations générales" icon={Globe} description="Nom et coordonnées de la plateforme">
-          <Field label="Nom de l'application" value={settings.appName} onChange={set("appName")} placeholder="Jatek" />
-          <Field label="Ville principale" value={settings.city} onChange={set("city")} placeholder="Oujda" />
-          <Field label="Devise" value={settings.currency} onChange={set("currency")} placeholder="MAD" />
+          <Field label="Nom de l'application" value={settings.appName} onChange={set("appName")} placeholder="Jatek" disabled={!isAdmin} />
+          <Field label="Ville principale" value={settings.city} onChange={set("city")} placeholder="Oujda" disabled={!isAdmin} />
+          <Field label="Devise" value={settings.currency} onChange={set("currency")} placeholder="MAD" disabled={!isAdmin} />
           <Separator />
-          <Field label="Email support" value={settings.supportEmail} onChange={set("supportEmail")} type="email" placeholder="support@jatek.ma" />
-          <Field label="Téléphone support" value={settings.supportPhone} onChange={set("supportPhone")} type="tel" placeholder="+212600000000" />
+          <Field label="Email support" value={settings.supportEmail} onChange={set("supportEmail")} type="email" placeholder="support@jatek.ma" disabled={!isAdmin} />
+          <Field label="Téléphone support" value={settings.supportPhone} onChange={set("supportPhone")} type="tel" placeholder="+212600000000" disabled={!isAdmin} />
         </Section>
 
         <Section title="Livraison" icon={Truck} description="Paramètres par défaut pour les livraisons">
-          <Field label="Frais de livraison par défaut" value={settings.defaultDeliveryFee} onChange={set("defaultDeliveryFee")} type="number" suffix="MAD" />
-          <Field label="Rayon de livraison max" value={settings.maxDeliveryRadiusKm} onChange={set("maxDeliveryRadiusKm")} type="number" suffix="km" />
-          <Field label="Montant minimum de commande" value={settings.minOrderAmount} onChange={set("minOrderAmount")} type="number" suffix="MAD" />
+          <Field label="Frais de livraison par défaut" value={settings.defaultDeliveryFee} onChange={set("defaultDeliveryFee")} type="number" suffix="MAD" disabled={!isAdmin} />
+          <Field label="Rayon de livraison max" value={settings.maxDeliveryRadiusKm} onChange={set("maxDeliveryRadiusKm")} type="number" suffix="km" disabled={!isAdmin} />
+          <Field label="Montant minimum de commande" value={settings.minOrderAmount} onChange={set("minOrderAmount")} type="number" suffix="MAD" disabled={!isAdmin} />
         </Section>
 
         <Section title="Notifications" icon={Bell} description="Activation des notifications système">
@@ -173,7 +199,7 @@ export default function SettingsPage() {
             <div className="flex flex-wrap gap-2 text-xs">
               <Badge variant="outline">Node.js {process.versions?.node ?? "—"}</Badge>
               <Badge variant="secondary">API v1</Badge>
-              <Badge variant="outline">Oujda, Maroc</Badge>
+              <Badge variant="outline">{settings.city || "Oujda"}, Maroc</Badge>
             </div>
           </div>
         </Section>
