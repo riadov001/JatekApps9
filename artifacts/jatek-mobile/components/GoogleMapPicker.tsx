@@ -21,7 +21,7 @@ function buildGoogleHtml(lat: number, lng: number, pin: string, zone: string) {
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
 <style>
-  html,body,#m{height:100%;margin:0;padding:0;background:#eef;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+  html,body,#m{height:100%;margin:0;padding:0;background:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
   .center-pin{
     position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);
     pointer-events:none;z-index:600;
@@ -143,7 +143,7 @@ function buildLeafletHtml(lat: number, lng: number, pin: string, zone: string) {
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-  html,body,#m{height:100%;margin:0;padding:0;background:#eef}
+  html,body,#m{height:100%;margin:0;padding:0;background:#fff}
   .center-pin{
     position:absolute;left:50%;top:50%;transform:translate(-50%,-100%);
     pointer-events:none;z-index:600;
@@ -165,7 +165,6 @@ function buildLeafletHtml(lat: number, lng: number, pin: string, zone: string) {
     <circle cx="21" cy="21" r="7" fill="#fff"/>
   </svg>
 </div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   function send(payload){
     try{
@@ -173,8 +172,12 @@ function buildLeafletHtml(lat: number, lng: number, pin: string, zone: string) {
       else if(window.parent){window.parent.postMessage(JSON.stringify(payload),'*');}
     }catch(e){}
   }
+  function showMapError(){
+    document.getElementById('m').innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;padding:24px;box-sizing:border-box;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#E91E8C" stroke-width="1.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg><p style="margin:0;font-size:14px;color:#666;text-align:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;">Carte temporairement indisponible.<br/>Confirmez votre position manuellement.</p></div>';
+    send({error:'map-unavailable'});
+  }
   function boot(){
-    if(typeof L === 'undefined'){ setTimeout(boot, 80); return; }
+    if(typeof L === 'undefined'){ showMapError(); return; }
     var center=[${lat},${lng}];
     var map=L.map('m',{zoomControl:false,attributionControl:false}).setView(center,15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,subdomains:['a','b','c']}).addTo(map);
@@ -193,8 +196,8 @@ function buildLeafletHtml(lat: number, lng: number, pin: string, zone: string) {
     setTimeout(function(){map.invalidateSize();},600);
     send({ready:true});
   }
-  boot();
 </script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" onload="boot()" onerror="showMapError()"></script>
 </body>
 </html>`;
 }
@@ -260,7 +263,7 @@ export function GoogleMapPicker({
             width: "100%",
             height: "100%",
             display: "block",
-            background: "#eef",
+            background: "#fff",
           }}
           title="Carte de livraison"
           sandbox="allow-scripts allow-same-origin allow-popups"
@@ -303,6 +306,6 @@ export function GoogleMapPicker({
 }
 
 const styles = StyleSheet.create({
-  wrap: { width: "100%", overflow: "hidden", backgroundColor: "#eef" },
+  wrap: { width: "100%", overflow: "hidden", backgroundColor: "#fff" },
   web: { flex: 1, backgroundColor: "transparent" },
 });
