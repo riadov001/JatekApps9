@@ -11,6 +11,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVER_ENTRY="$ROOT_DIR/artifacts/api-server/dist/index.mjs"
 ADMIN_INDEX="$ROOT_DIR/artifacts/backend-dashboard/dist/public/index.html"
+LANDING_INDEX="$ROOT_DIR/artifacts/jatek-landing/dist/public/index.html"
 
 fail() {
   echo "[smoke] FAIL: $*" >&2
@@ -19,6 +20,7 @@ fail() {
 
 [ -f "$SERVER_ENTRY" ]  || fail "missing $SERVER_ENTRY — run scripts/build-production.sh first"
 [ -f "$ADMIN_INDEX" ]   || fail "missing $ADMIN_INDEX — backend-dashboard build did not produce dist/public/index.html"
+[ -f "$LANDING_INDEX" ] || fail "missing $LANDING_INDEX — jatek-landing build did not produce dist/public/index.html"
 
 # Pick a free random port (high range to avoid collisions with running dev workflows).
 PORT="$(node -e 'const s=require("net").createServer();s.listen(0,()=>{const p=s.address().port;s.close(()=>console.log(p));});')"
@@ -92,6 +94,7 @@ check() {
 }
 
 echo "[smoke] Probing routes…"
+check "/"
 check "/admin/"
 check "/api/healthz"
 check "/health"

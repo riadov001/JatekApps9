@@ -124,11 +124,21 @@ app.use("/api", router);
 
 // ─── Production static file serving ──────────────────────────────────────────
 // In production the API server serves:
+//   /        → jatek-landing (built to artifacts/jatek-landing/dist/public)
 //   /admin/* → backend-dashboard (built to artifacts/backend-dashboard/dist/public)
-//   /        → redirect to /admin/  (no customer web SPA; app is mobile-only)
 if (process.env.NODE_ENV === "production") {
+  const landingDir = path.resolve(__dirname, "../../jatek-landing/dist/public");
   const dashboardDir = path.resolve(__dirname, "../../backend-dashboard/dist/public");
 
+  // Landing page at root
+  if (existsSync(landingDir)) {
+    app.use("/", express.static(landingDir, { index: "index.html" }));
+    logger.info("Serving jatek-landing static files from " + landingDir);
+  } else {
+    logger.warn("jatek-landing/dist/public not found — run pnpm build first");
+  }
+
+  // Admin dashboard at /admin
   if (existsSync(dashboardDir)) {
     app.use("/admin", express.static(dashboardDir, { index: "index.html" }));
     // SPA fallback for /admin/* routes
@@ -140,8 +150,14 @@ if (process.env.NODE_ENV === "production") {
     logger.warn("backend-dashboard/dist/public not found — run pnpm build first");
   }
 
-  // Root redirect — no customer web SPA; direct visitors to the admin panel.
-  app.get("/", (_req, res) => res.redirect(301, "/admin/"));
+  // SPA fallback for the landing page at root (after /admin and /api routes)
+  app.get("/*splat", (req, res) => {
+    // API and admin paths should not be served by the landing page SPA
+    if (req.path.startsWith("/api") || req.path.startsWith("/admin")) {
+      return res.status(404).json({ error: "Not found", path: req.path });
+    }
+    res.sendFile(path.join(landingDir, "index.html"));
+  });
 } else {
   app.use((req, res) => {
     res.status(404).json({ error: "Not found", path: req.path });

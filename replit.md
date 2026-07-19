@@ -5,8 +5,9 @@ Jatek is a full-stack food delivery application serving Oujda, Morocco, connecti
 ## Run & Operate
 
 ### Workflows (Replit)
-- **"Start application"** — Backend dashboard (Vite) on port 5000 (`PORT=5000 BASE_PATH=/ pnpm --filter @workspace/backend-dashboard run dev`)
+- **"Start application"** — Landing page (Vite) on port 5000 (`PORT=5000 BASE_PATH=/ pnpm --filter @workspace/jatek-landing run dev`), served at the root domain `ma.jatek.app`
 - **"artifacts/api-server: API Server"** — Express API on port 8080 (`pnpm --filter @workspace/api-server run dev`)
+- **"artifacts/backend-dashboard: web"** — Admin dashboard on port 19167 (`PORT=19167 BASE_PATH=/admin/ pnpm --filter @workspace/backend-dashboard run dev`), served at `/admin/`
 
 ### CLI
 - `pnpm install`: Install all workspace dependencies.
@@ -45,6 +46,7 @@ Jatek is a full-stack food delivery application serving Oujda, Morocco, connecti
 - `artifacts/jatek-mobile`: Expo (React Native) customer mobile app.
 - `artifacts/jatek-driver`: Expo (React Native) driver mobile app.
 - `artifacts/backend-dashboard`: React + Vite admin dashboard.
+- `artifacts/jatek-landing`: React + Vite public landing page (white theme, Jatek branding).
 - `lib/api-spec/openapi.yaml`: OpenAPI specification (source of truth for API contracts).
 - `lib/db/schema.ts`: Drizzle ORM database schema definition.
 - `artifacts/food-delivery/src/index.css`: Tailwind CSS configuration and web theme tokens.

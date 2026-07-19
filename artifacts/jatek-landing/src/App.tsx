@@ -1,37 +1,65 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
-import { ShoppingBag, UtensilsCrossed, Sparkles, Baby, Stethoscope, Clock, MapPin, Star, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
+import {
+  ShoppingBag,
+  UtensilsCrossed,
+  Sparkles,
+  Baby,
+  Stethoscope,
+  Clock,
+  MapPin,
+  Star,
+  ArrowRight,
+  ShieldCheck,
+  Zap,
+  Bike,
+  Smartphone,
+  ChevronRight,
+} from 'lucide-react';
 
 const fadeIn = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
 const staggerContainer = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
+    transition: { staggerChildren: 0.08 },
+  },
 };
 
+const Wave = () => (
+  <svg
+    viewBox="0 0 1440 120"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className="absolute -bottom-px left-0 w-full h-auto"
+    preserveAspectRatio="none"
+  >
+    <path
+      d="M0 120L48 108C96 96 192 72 288 66C384 60 480 72 576 78C672 84 768 84 864 78C960 72 1056 60 1152 60C1248 60 1344 72 1392 78L1440 84V0H1392C1344 0 1248 0 1152 0C1056 0 960 0 864 0C768 0 672 0 576 0C480 0 384 0 288 0C192 0 96 0 48 0H0V120Z"
+      fill="white"
+    />
+  </svg>
+);
+
 const Navbar = () => (
-  <nav className="fixed top-0 left-0 right-0 z-40 bg-brand-darker/80 backdrop-blur-md border-b border-white/5 px-6 py-4">
+  <nav className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-[#EBEBEB]/80 px-6 py-4">
     <div className="max-w-7xl mx-auto flex items-center justify-between">
       <div className="flex items-center gap-2">
         <img src="/jatek-logo.png" alt="Jatek" className="h-8 md:h-10 object-contain" />
       </div>
-      <div className="hidden md:flex items-center gap-8 text-sm font-medium text-white/70">
+      <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-[#6B7280]">
         <a href="#services" className="hover:text-brand-pink transition-colors">Services</a>
         <a href="#tracking" className="hover:text-brand-teal transition-colors">Suivi Live</a>
-        <a href="#pro" className="hover:text-brand-yellow transition-colors">Jatek Pro</a>
+        <a href="#promos" className="hover:text-brand-yellow transition-colors">Promos</a>
       </div>
-      <a 
-        href="#download" 
-        className="bg-white text-black px-5 py-2.5 rounded-full font-bold text-sm hover:bg-brand-pink hover:text-white transition-all duration-300"
+      <a
+        href="#download"
+        className="bg-brand-pink text-white px-5 py-2.5 rounded-full font-bold text-sm hover:bg-brand-pink-deep transition-all duration-300 shadow-soft"
       >
         Télécharger l'app
       </a>
@@ -40,130 +68,133 @@ const Navbar = () => (
 );
 
 const Hero = () => (
-  <section className="relative min-h-[100dvh] flex items-center pt-20 overflow-hidden">
-    {/* Background Image & Overlay */}
-    <div className="absolute inset-0 z-0">
-      <div className="absolute inset-0 bg-brand-darker/80 z-10" />
-      <div className="absolute inset-0 bg-gradient-to-t from-brand-darker via-transparent to-brand-darker/50 z-10" />
-      <img 
-        src="/hero-bg.jpg" 
-        alt="Oujda night life" 
-        className="w-full h-full object-cover object-center opacity-40 scale-105"
-      />
+  <section className="relative pt-24 md:pt-28 pb-16 md:pb-24 overflow-hidden bg-brand-pink">
+    <div className="absolute inset-0 opacity-10">
+      <div className="absolute top-10 left-10 w-64 h-64 bg-white rounded-full blur-3xl" />
+      <div className="absolute bottom-20 right-10 w-96 h-96 bg-brand-yellow rounded-full blur-3xl" />
     </div>
 
-    {/* Abstract Glows */}
-    <div className="absolute top-1/4 -left-64 w-[500px] h-[500px] bg-brand-pink/20 rounded-full blur-[120px] pointer-events-none z-10" />
-    <div className="absolute bottom-1/4 -right-64 w-[600px] h-[600px] bg-brand-teal/20 rounded-full blur-[150px] pointer-events-none z-10" />
+    <Wave />
 
-    <div className="max-w-7xl mx-auto px-6 relative z-20 w-full grid lg:grid-cols-2 gap-12 items-center">
-      <motion.div 
+    <div className="max-w-7xl mx-auto px-6 relative z-10 w-full grid lg:grid-cols-2 gap-12 items-center">
+      <motion.div
         initial="hidden"
         animate="visible"
         variants={staggerContainer}
-        className="max-w-2xl"
+        className="max-w-2xl text-white"
       >
-        <motion.div variants={fadeIn} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-brand-teal mb-6">
+        <motion.div
+          variants={fadeIn}
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 border border-white/30 text-xs font-bold backdrop-blur-sm mb-6"
+        >
           <MapPin className="w-3.5 h-3.5" /> <span>Disponible partout à Oujda</span>
         </motion.div>
-        
-        <motion.h1 variants={fadeIn} className="text-5xl md:text-7xl font-bold font-display leading-[1.1] mb-6 tracking-tight text-white">
+
+        <motion.h1
+          variants={fadeIn}
+          className="text-4xl md:text-6xl font-extrabold leading-[1.1] mb-6 tracking-tight"
+        >
           Tout Oujda, <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-pink via-brand-yellow to-brand-teal">livré chez vous.</span>
+          <span className="text-brand-yellow">livré chez vous.</span>
         </motion.h1>
-        
-        <motion.p variants={fadeIn} className="text-lg md:text-xl text-white/60 mb-10 max-w-lg leading-relaxed">
-          Restaurants, épiceries, beauté, bébé et pharmacie. Ce dont vous avez besoin, 
+
+        <motion.p
+          variants={fadeIn}
+          className="text-lg md:text-xl text-white/90 mb-10 max-w-lg leading-relaxed"
+        >
+          Restaurants, épiceries, beauté, bébé et pharmacie. Ce dont vous avez besoin,
           quand vous en avez besoin, livré en un clin d'œil par nos super-drivers.
         </motion.p>
-        
+
         <motion.div variants={fadeIn} className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-          <div className="bg-white/5 border border-white/10 p-4 rounded-3xl flex items-center gap-6 backdrop-blur-md">
-            <div className="bg-white p-2 rounded-2xl">
-              <QRCodeSVG 
-                value="exp://ma.jatek.app" 
-                size={96} 
-                level="H"
-                fgColor="#050507"
-                bgColor="#ffffff"
-              />
-            </div>
-            <div className="pr-4">
-              <p className="font-bold text-lg mb-1">Scanner pour <br/>télécharger</p>
-              <p className="text-xs text-white/50">iOS & Android</p>
+          <div className="bg-white p-4 rounded-3xl shadow-elevated flex items-center gap-5">
+            <QRCodeSVG
+              value="exp://ma.jatek.app"
+              size={88}
+              level="H"
+              fgColor="#0A1B3D"
+              bgColor="#ffffff"
+            />
+            <div>
+              <p className="font-bold text-[#0A1B3D] text-lg mb-1">Scanner pour télécharger</p>
+              <p className="text-xs text-[#6B7280]">iOS & Android</p>
             </div>
           </div>
-          <a 
+          <a
             href="#download"
-            className="group flex items-center gap-3 bg-brand-pink text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-brand-pink/90 transition-all glow-pink"
+            className="group flex items-center gap-3 bg-brand-yellow text-[#0A1B3D] px-8 py-4 rounded-full font-bold text-lg hover:bg-white hover:text-brand-pink transition-all duration-300 shadow-elevated"
           >
             Commander <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </a>
         </motion.div>
       </motion.div>
-      
-      {/* Visual App Mockup Abstract */}
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.9, rotate: 2 }}
-        animate={{ opacity: 1, scale: 1, rotate: 0 }}
-        transition={{ duration: 0.8, delay: 0.2 }}
-        className="hidden lg:block relative"
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.7, delay: 0.2 }}
+        className="hidden lg:flex justify-center relative"
       >
-        <div className="relative w-[340px] h-[680px] bg-[#0a0a0c] border-[8px] border-gray-900 rounded-[3rem] mx-auto overflow-hidden shadow-2xl z-20">
-          <div className="absolute top-0 inset-x-0 h-6 bg-gray-900 rounded-b-3xl w-40 mx-auto z-50"></div>
-          
-          <div className="absolute inset-0 bg-gradient-to-b from-brand-darker to-[#111]">
-            {/* Fake App UI */}
-            <div className="p-6 pt-12">
-              <div className="flex items-center justify-between mb-8">
+        <div className="relative w-[320px] h-[640px] bg-white border-[8px] border-[#0A1B3D] rounded-[3rem] overflow-hidden shadow-2xl">
+          <div className="absolute top-0 inset-x-0 h-6 bg-[#0A1B3D] rounded-b-3xl w-32 mx-auto z-50" />
+
+          <div className="absolute inset-0 bg-white">
+            <div className="p-5 pt-12">
+              <div className="flex items-center justify-between mb-6">
                 <div>
-                  <p className="text-xs text-white/50">Livrer à</p>
-                  <p className="font-bold text-sm flex items-center gap-1"><MapPin className="w-3 h-3 text-brand-pink"/> Hay El Qods, Oujda</p>
+                  <p className="text-xs text-[#6B7280]">Livrer à</p>
+                  <p className="font-bold text-sm flex items-center gap-1 text-[#0A1B3D]">
+                    <MapPin className="w-3 h-3 text-brand-pink" /> Hay El Qods, Oujda
+                  </p>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-white/10"></div>
+                <div className="w-10 h-10 rounded-full bg-[#F5F5F5]" />
               </div>
-              
+
               <div className="relative mb-6">
-                <input type="text" placeholder="Que cherchez-vous ?" className="w-full bg-white/5 border border-white/10 rounded-full py-3 px-4 text-sm text-white outline-none" disabled/>
+                <input
+                  type="text"
+                  placeholder="Que cherchez-vous ?"
+                  className="w-full bg-[#F5F5F5] border border-[#EBEBEB] rounded-full py-3 px-4 text-sm text-[#0A1B3D] outline-none"
+                  disabled
+                />
               </div>
-              
+
               <div className="grid grid-cols-3 gap-3 mb-8">
                 {[
-                  { icon: UtensilsCrossed, color: 'text-brand-pink', bg: 'bg-brand-pink/10', label: 'Repas' },
-                  { icon: ShoppingBag, color: 'text-brand-yellow', bg: 'bg-brand-yellow/10', label: 'Épicerie' },
-                  { icon: Sparkles, color: 'text-brand-teal', bg: 'bg-brand-teal/10', label: 'Beauté' },
+                  { icon: UtensilsCrossed, color: 'text-[#B85C00]', bg: 'bg-[#FFF6CC]', label: 'Repas' },
+                  { icon: ShoppingBag, color: 'text-[#2E7D32]', bg: 'bg-[#E8F5E9]', label: 'Épicerie' },
+                  { icon: Sparkles, color: 'text-[#C2185B]', bg: 'bg-[#FFF0F8]', label: 'Beauté' },
                 ].map((item, i) => (
                   <div key={i} className="flex flex-col items-center gap-2">
                     <div className={`w-14 h-14 rounded-2xl ${item.bg} flex items-center justify-center`}>
                       <item.icon className={`w-6 h-6 ${item.color}`} />
                     </div>
-                    <span className="text-[10px] font-medium text-white/70">{item.label}</span>
+                    <span className="text-[10px] font-semibold text-[#6B7280]">{item.label}</span>
                   </div>
                 ))}
               </div>
 
-              <h3 className="font-bold text-sm mb-4">Recommandé pour vous</h3>
+              <h3 className="font-bold text-sm mb-4 text-[#0A1B3D]">Recommandé pour vous</h3>
               <div className="space-y-4">
                 {[1, 2].map((i) => (
-                  <div key={i} className="h-24 bg-white/5 rounded-2xl border border-white/5 animate-pulse"></div>
+                  <div key={i} className="h-24 bg-[#F5F5F5] rounded-2xl border border-[#EBEBEB] animate-pulse" />
                 ))}
               </div>
             </div>
           </div>
         </div>
-        
-        {/* Floating elements */}
-        <motion.div 
-          animate={{ y: [0, -10, 0] }}
-          transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-          className="absolute top-32 -left-12 bg-white/10 backdrop-blur-xl border border-white/10 p-4 rounded-2xl flex items-center gap-3 z-30 shadow-xl"
+
+        <motion.div
+          animate={{ y: [0, -8, 0] }}
+          transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
+          className="absolute top-36 -left-8 bg-white border border-[#EBEBEB] p-4 rounded-2xl flex items-center gap-3 z-30 shadow-soft"
         >
           <div className="w-10 h-10 bg-brand-yellow rounded-full flex items-center justify-center">
-            <Star className="w-5 h-5 text-black fill-black" />
+            <Star className="w-5 h-5 text-[#0A1B3D] fill-[#0A1B3D]" />
           </div>
           <div>
-            <p className="text-xs text-white/50">Tacos de Lyon</p>
-            <p className="font-bold text-sm">En route !</p>
+            <p className="text-xs text-[#6B7280]">Tacos de Lyon</p>
+            <p className="font-bold text-sm text-[#0A1B3D]">En route !</p>
           </div>
         </motion.div>
       </motion.div>
@@ -171,110 +202,178 @@ const Hero = () => (
   </section>
 );
 
-const CategoryCard = ({ title, icon: Icon, image, color, delay }: any) => (
-  <motion.div 
+const CategoryCard = ({ title, icon: Icon, color, bg, textColor, delay }: any) => (
+  <motion.div
     initial={{ opacity: 0, y: 20 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
-    transition={{ duration: 0.5, delay }}
-    className="group relative h-[300px] rounded-3xl overflow-hidden cursor-pointer"
+    transition={{ duration: 0.4, delay }}
+    className="group bg-white border border-[#EBEBEB] rounded-3xl p-6 shadow-soft hover:shadow-elevated transition-all duration-300 cursor-pointer"
   >
-    <div className="absolute inset-0 bg-brand-darker z-0" />
-    <img src={image} alt={title} className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-70 group-hover:scale-110 transition-all duration-700 z-0" />
-    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-10" />
-    
-    <div className="absolute inset-0 z-20 p-6 flex flex-col justify-end">
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:-translate-y-2`} style={{ backgroundColor: color }}>
-        <Icon className="w-6 h-6 text-black" />
-      </div>
-      <h3 className="font-display font-bold text-2xl text-white group-hover:text-transparent group-hover:bg-clip-text transition-all" style={{ backgroundImage: `linear-gradient(to right, ${color}, white)` }}>{title}</h3>
+    <div
+      className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 transition-transform group-hover:-translate-y-1"
+      style={{ backgroundColor: bg }}
+    >
+      <Icon className="w-7 h-7" style={{ color }} />
     </div>
+    <h3 className="font-bold text-xl text-[#0A1B3D] mb-2">{title}</h3>
+    <p className="text-sm text-[#6B7280] leading-relaxed">
+      Commandez en ligne et recevez rapidement chez vous.
+    </p>
   </motion.div>
 );
 
 const Verticals = () => (
-  <section id="services" className="py-32 px-6 relative border-t border-white/5">
+  <section id="services" className="py-20 md:py-28 px-6 bg-white">
     <div className="max-w-7xl mx-auto">
-      <div className="text-center mb-16">
-        <h2 className="text-4xl md:text-5xl font-bold font-display mb-4">La ville entière dans<br/>votre poche.</h2>
-        <p className="text-white/50 text-lg max-w-xl mx-auto">Vos envies n'attendent pas. Jatek non plus.</p>
+      <div className="text-center mb-14">
+        <h2 className="text-3xl md:text-5xl font-extrabold mb-4 text-[#0A1B3D]">
+          La ville entière dans votre poche.
+        </h2>
+        <p className="text-[#6B7280] text-lg max-w-xl mx-auto">
+          Vos envies n'attendent pas. Jatek non plus.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <CategoryCard title="Restaurants" icon={UtensilsCrossed} image="/category-food.jpg" color="var(--color-brand-pink)" delay={0.1} />
-        <CategoryCard title="Épicerie" icon={ShoppingBag} image="/category-grocery.jpg" color="var(--color-brand-yellow)" delay={0.2} />
-        <CategoryCard title="Beauté & Soins" icon={Sparkles} image="/category-beauty.jpg" color="var(--color-brand-teal)" delay={0.3} />
-        <CategoryCard title="Bébé" icon={Baby} image="/category-baby.jpg" color="#FF8A65" delay={0.4} />
-        <CategoryCard title="Pharmacie" icon={Stethoscope} image="/category-health.jpg" color="#4DB6AC" delay={0.5} />
-        
-        <motion.div 
+        <CategoryCard
+          title="Restaurants"
+          icon={UtensilsCrossed}
+          color="#B85C00"
+          bg="#FFF6CC"
+          delay={0.1}
+        />
+        <CategoryCard
+          title="Épicerie"
+          icon={ShoppingBag}
+          color="#2E7D32"
+          bg="#E8F5E9"
+          delay={0.2}
+        />
+        <CategoryCard
+          title="Beauté & Soins"
+          icon={Sparkles}
+          color="#C2185B"
+          bg="#FFF0F8"
+          delay={0.3}
+        />
+        <CategoryCard
+          title="Bébé"
+          icon={Baby}
+          color="#E65100"
+          bg="#FFF3E0"
+          delay={0.4}
+        />
+        <CategoryCard
+          title="Pharmacie"
+          icon={Stethoscope}
+          color="#C62828"
+          bg="#FFEBEE"
+          delay={0.5}
+        />
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.6 }}
-          className="bg-brand-pink/10 border border-brand-pink/20 rounded-3xl p-8 flex flex-col justify-center items-center text-center group hover:bg-brand-pink/20 transition-colors"
+          transition={{ duration: 0.4, delay: 0.6 }}
+          className="bg-brand-pink rounded-3xl p-8 flex flex-col justify-center items-center text-center text-white shadow-soft hover:shadow-elevated transition-all"
         >
-          <div className="w-16 h-16 bg-brand-pink rounded-full flex items-center justify-center mb-4 glow-pink">
+          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4">
             <Zap className="w-8 h-8 text-white" />
           </div>
-          <h3 className="font-display font-bold text-2xl mb-2 text-brand-pink">Livraison Flash</h3>
-          <p className="text-white/60 text-sm">Des coursiers dédiés pour une rapidité fulgurante à travers Oujda.</p>
+          <h3 className="font-bold text-2xl mb-2">Livraison Flash</h3>
+          <p className="text-white/90 text-sm">
+            Des coursiers dédiés pour une rapidité fulgurante à travers Oujda.
+          </p>
         </motion.div>
       </div>
     </div>
   </section>
 );
 
+const PromoBanner = () => (
+  <section id="promos" className="py-16 px-6 bg-[#F5F5F5]">
+    <div className="max-w-5xl mx-auto">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5 }}
+        className="bg-white border border-[#EBEBEB] rounded-3xl p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8 shadow-soft"
+      >
+        <div className="flex-1">
+          <span className="inline-block px-3 py-1 rounded-md bg-brand-pink-soft text-brand-pink text-xs font-bold tracking-wider mb-4">
+            CODE PROMO
+          </span>
+          <h3 className="text-4xl md:text-5xl font-black text-[#0A1B3D] mb-2">-10%</h3>
+          <p className="text-[#6B7280] font-medium mb-6">avec le code <span className="text-brand-pink font-bold">WELCOME10</span></p>
+          <p className="text-sm text-[#6B7280]">
+            Profitez de réductions exclusives et cumulez des points de fidélité à chaque commande.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-3xl font-black italic text-brand-pink">Jatek</span>
+          <div className="w-10 h-10 rounded-full bg-brand-pink flex items-center justify-center">
+            <ChevronRight className="w-6 h-6 text-white" />
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  </section>
+);
+
 const TrackingInfo = () => (
-  <section id="tracking" className="py-32 px-6 bg-[#050507] relative overflow-hidden">
-    <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-brand-teal/5 rounded-full blur-[100px] pointer-events-none" />
-    
+  <section id="tracking" className="py-20 md:py-28 px-6 bg-white relative overflow-hidden">
+    <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-teal-soft rounded-full blur-[120px] opacity-50 pointer-events-none" />
+
     <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center relative z-10">
-      <div className="order-2 lg:order-1 relative rounded-[2.5rem] overflow-hidden aspect-[4/5] md:aspect-square lg:aspect-[4/5]">
-        <img src="/delivery-driver.jpg" alt="Jatek Driver" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050507] via-transparent to-transparent" />
-        
-        {/* Mock Live Tracking UI */}
-        <div className="absolute bottom-6 left-6 right-6 bg-white/10 backdrop-blur-xl border border-white/20 p-5 rounded-3xl">
+      <div className="order-2 lg:order-1 relative rounded-[2.5rem] overflow-hidden aspect-[4/5] md:aspect-square lg:aspect-[4/5] bg-[#F5F5F5]">
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-teal-soft to-brand-pink-soft flex items-center justify-center">
+          <Bike className="w-32 h-32 text-brand-teal opacity-40" />
+        </div>
+
+        <div className="absolute bottom-6 left-6 right-6 glass-card p-5 rounded-3xl">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-12 h-12 bg-brand-teal rounded-full flex items-center justify-center border-2 border-white">
-              <span className="font-bold text-black">A</span>
+              <span className="font-bold text-white">A</span>
             </div>
             <div>
-              <p className="font-bold text-white">Amine est en route</p>
-              <p className="text-sm text-brand-teal font-medium">Arrive dans 8 min</p>
+              <p className="font-bold text-[#0A1B3D]">Amine est en route</p>
+              <p className="text-sm text-brand-teal font-semibold">Arrive dans 8 min</p>
             </div>
           </div>
-          <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-            <motion.div 
+          <div className="h-1.5 w-full bg-[#EBEBEB] rounded-full overflow-hidden">
+            <motion.div
               className="h-full bg-brand-teal"
-              initial={{ width: "30%" }}
-              animate={{ width: "70%" }}
-              transition={{ duration: 2, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+              initial={{ width: '30%' }}
+              animate={{ width: '70%' }}
+              transition={{ duration: 2, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }}
             />
           </div>
         </div>
       </div>
-      
+
       <div className="order-1 lg:order-2">
-        <h2 className="text-4xl md:text-5xl font-bold font-display mb-6">Ne perdez plus<br/>jamais le nord.</h2>
-        <p className="text-lg text-white/60 mb-10 leading-relaxed">
+        <h2 className="text-3xl md:text-5xl font-extrabold mb-6 text-[#0A1B3D]">
+          Ne perdez plus jamais le nord.
+        </h2>
+        <p className="text-lg text-[#6B7280] mb-10 leading-relaxed">
           Suivez votre commande en temps réel depuis la cuisine du restaurant jusqu'à votre porte. Nos chauffeurs sont équipés d'un GPS ultra-précis pour que vous sachiez exactement quand dresser la table.
         </p>
-        
+
         <ul className="space-y-6">
           {[
-            { icon: Clock, title: "Estimations fiables", desc: "Temps de préparation et de trajet calculés par notre algorithme." },
-            { icon: MapPin, title: "Position GPS en direct", desc: "Regardez votre livreur slalomer (prudemment) dans les rues d'Oujda." },
-            { icon: ShieldCheck, title: "Contact direct", desc: "Appelez ou envoyez un message à votre livreur en un clic." }
+            { icon: Clock, title: 'Estimations fiables', desc: 'Temps de préparation et de trajet calculés par notre algorithme.', color: 'bg-brand-yellow-soft text-[#B85C00]' },
+            { icon: MapPin, title: 'Position GPS en direct', desc: "Regardez votre livreur slalomer (prudemment) dans les rues d'Oujda.", color: 'bg-brand-pink-soft text-brand-pink' },
+            { icon: ShieldCheck, title: 'Contact direct', desc: 'Appelez ou envoyez un message à votre livreur en un clic.', color: 'bg-brand-teal-soft text-brand-teal' },
           ].map((feature, i) => (
             <li key={i} className="flex gap-4">
-              <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-                <feature.icon className="w-5 h-5 text-brand-yellow" />
+              <div className={`flex-shrink-0 w-12 h-12 rounded-2xl ${feature.color} flex items-center justify-center`}>
+                <feature.icon className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-bold text-lg">{feature.title}</h4>
-                <p className="text-sm text-white/50 mt-1">{feature.desc}</p>
+                <h4 className="font-bold text-lg text-[#0A1B3D]">{feature.title}</h4>
+                <p className="text-sm text-[#6B7280] mt-1">{feature.desc}</p>
               </div>
             </li>
           ))}
@@ -285,28 +384,51 @@ const TrackingInfo = () => (
 );
 
 const ProTier = () => (
-  <section id="pro" className="py-32 px-6 border-y border-white/5">
-    <div className="max-w-5xl mx-auto bg-gradient-to-br from-brand-yellow/10 to-transparent border border-brand-yellow/20 rounded-[3rem] p-10 md:p-16 relative overflow-hidden text-center md:text-left flex flex-col md:flex-row items-center gap-12">
-      <div className="absolute -right-20 -top-20 w-64 h-64 bg-brand-yellow/20 rounded-full blur-[80px]" />
-      
+  <section id="pro" className="py-20 md:py-28 px-6 bg-[#FFF6CC]">
+    <div className="max-w-5xl mx-auto bg-white border border-[#EBEBEB] rounded-[3rem] p-10 md:p-16 relative overflow-hidden text-center md:text-left flex flex-col md:flex-row items-center gap-12 shadow-soft">
+      <div className="absolute -right-20 -top-20 w-64 h-64 bg-brand-yellow rounded-full blur-[80px] opacity-30" />
+
       <div className="flex-1 relative z-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-yellow/20 text-brand-yellow text-xs font-bold uppercase tracking-wider mb-6">
-          <Star className="w-4 h-4 fill-brand-yellow" /> Nouveau
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-yellow-soft text-[#B85C00] text-xs font-bold uppercase tracking-wider mb-6">
+          <Star className="w-4 h-4 fill-[#B85C00]" /> Nouveau
         </div>
-        <h2 className="text-3xl md:text-5xl font-bold font-display mb-4">Jatek <span className="text-brand-yellow">Pro</span></h2>
-        <p className="text-white/70 text-lg mb-8 max-w-md mx-auto md:mx-0">
+        <h2 className="text-3xl md:text-5xl font-extrabold mb-4 text-[#0A1B3D]">
+          Jatek <span className="text-brand-pink">Pro</span>
+        </h2>
+        <p className="text-[#6B7280] text-lg mb-8 max-w-md mx-auto md:mx-0">
           Rejoignez le club. Livraison gratuite illimitée, offres exclusives chez nos partenaires, et service client prioritaire.
         </p>
-        <button className="bg-brand-yellow text-black px-8 py-4 rounded-full font-bold hover:bg-white transition-colors duration-300">
+        <button className="bg-brand-pink text-white px-8 py-4 rounded-full font-bold hover:bg-brand-pink-deep transition-colors duration-300 shadow-soft">
           Découvrir l'abonnement
         </button>
       </div>
-      
-      <div className="relative z-10 w-64 h-64 flex-shrink-0">
-        <div className="absolute inset-0 bg-brand-yellow rounded-full blur-[40px] opacity-20" />
-        <div className="relative w-full h-full bg-gradient-to-tr from-[#1a1500] to-[#332b00] border-2 border-brand-yellow/50 rounded-full flex items-center justify-center shadow-2xl">
-          <img src="/jatek-logo.png" alt="Jatek" className="w-32 opacity-80 mix-blend-screen" />
-          <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-4xl font-display font-black text-brand-yellow/10 tracking-widest uppercase rotate-45 transform pointer-events-none">PRO PRO</div>
+
+      <div className="relative z-10 w-56 h-56 flex-shrink-0">
+        <div className="absolute inset-0 bg-brand-pink rounded-full blur-[40px] opacity-20" />
+        <div className="relative w-full h-full bg-brand-pink-soft rounded-full border-2 border-brand-pink/20 flex items-center justify-center shadow-elevated">
+          <img src="/jatek-logo.png" alt="Jatek" className="w-28" />
+        </div>
+      </div>
+    </div>
+  </section>
+);
+
+const Download = () => (
+  <section id="download" className="py-20 md:py-28 px-6 bg-white text-center">
+    <div className="max-w-3xl mx-auto">
+      <h2 className="text-3xl md:text-5xl font-extrabold mb-6 text-[#0A1B3D]">
+        Téléchargez Jatek dès maintenant
+      </h2>
+      <p className="text-lg text-[#6B7280] mb-10">
+        Disponible sur iOS et Android. Commandez en quelques secondes et suivez votre livreur en temps réel.
+      </p>
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+        <div className="bg-white border border-[#EBEBEB] p-5 rounded-3xl shadow-soft">
+          <QRCodeSVG value="exp://ma.jatek.app" size={120} level="H" fgColor="#0A1B3D" bgColor="#ffffff" />
+        </div>
+        <div className="text-left">
+          <p className="font-bold text-[#0A1B3D] text-lg mb-1">Scannez le QR code</p>
+          <p className="text-sm text-[#6B7280]">ou recherchez "Jatek" sur l'App Store / Play Store.</p>
         </div>
       </div>
     </div>
@@ -314,46 +436,55 @@ const ProTier = () => (
 );
 
 const Footer = () => (
-  <footer className="bg-[#050507] pt-20 pb-10 px-6 relative border-t border-white/10">
+  <footer className="bg-[#F5F5F5] pt-16 pb-8 px-6 border-t border-[#EBEBEB]">
     <div className="max-w-7xl mx-auto">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
         <div className="col-span-1 md:col-span-2">
-          <img src="/jatek-logo.png" alt="Jatek" className="h-8 mb-6 grayscale hover:grayscale-0 transition-all" />
-          <p className="text-white/50 text-sm max-w-sm mb-6">
-            La première super-app de livraison pensée, créée et déployée à Oujda, pour les Oujdis. 
+          <img src="/jatek-logo.png" alt="Jatek" className="h-8 mb-5" />
+          <p className="text-[#6B7280] text-sm max-w-sm mb-5">
+            La première super-app de livraison pensée, créée et déployée à Oujda, pour les Oujdis.
           </p>
-          <div className="flex gap-4">
-            <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-pink transition-colors text-white/70 hover:text-white">IG</a>
-            <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-teal transition-colors text-white/70 hover:text-white">FB</a>
-            <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-brand-yellow hover:text-black transition-colors text-white/70">TW</a>
+          <div className="flex gap-3">
+            {['IG', 'FB', 'TW'].map((label) => (
+              <a
+                key={label}
+                href="#"
+                className="w-9 h-9 rounded-full bg-white border border-[#EBEBEB] flex items-center justify-center text-xs font-bold text-[#6B7280] hover:bg-brand-pink hover:text-white hover:border-brand-pink transition-colors"
+              >
+                {label}
+              </a>
+            ))}
           </div>
         </div>
-        
+
         <div>
-          <h4 className="font-bold mb-4">L'entreprise</h4>
-          <ul className="space-y-3 text-sm text-white/50">
-            <li><a href="#" className="hover:text-white transition-colors">À propos</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Carrières</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
+          <h4 className="font-bold text-[#0A1B3D] mb-4">L'entreprise</h4>
+          <ul className="space-y-3 text-sm text-[#6B7280]">
+            <li><a href="#" className="hover:text-brand-pink transition-colors">À propos</a></li>
+            <li><a href="#" className="hover:text-brand-pink transition-colors">Carrières</a></li>
+            <li><a href="#" className="hover:text-brand-pink transition-colors">Blog</a></li>
+            <li><a href="#" className="hover:text-brand-pink transition-colors">Contact</a></li>
           </ul>
         </div>
-        
+
         <div>
-          <h4 className="font-bold mb-4">Partenaires</h4>
-          <ul className="space-y-3 text-sm text-white/50">
+          <h4 className="font-bold text-[#0A1B3D] mb-4">Partenaires</h4>
+          <ul className="space-y-3 text-sm text-[#6B7280]">
             <li><a href="#" className="hover:text-brand-pink transition-colors">Devenir Partenaire</a></li>
-            <li><a href="#" className="hover:text-brand-teal transition-colors">Devenir Livreur</a></li>
-            <li><a href="#" className="hover:text-white transition-colors">Solutions Pro</a></li>
+            <li><a href="#" className="hover:text-brand-pink transition-colors">Devenir Livreur</a></li>
+            <li><a href="#" className="hover:text-brand-pink transition-colors">Solutions Pro</a></li>
           </ul>
         </div>
       </div>
-      
-      <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-white/40">
-        <p>&copy; {new Date().getFullYear()} Jatek App. Fièrement créé à Oujda, Maroc.</p>
-        <div className="flex gap-4">
-          <a href="#" className="hover:text-white">CGU</a>
-          <a href="#" className="hover:text-white">Confidentialité</a>
+
+      <div className="pt-6 border-t border-[#EBEBEB] flex flex-col md:flex-row justify-between items-center gap-4">
+        <p className="text-xs text-[#9CA3AF]">
+          &copy; {new Date().getFullYear()} Jatek App. Fièrement créé à Oujda, Maroc.
+        </p>
+        <div className="flex items-center gap-4 text-[10px] text-[#9CA3AF]">
+          <a href="/admin/" className="hover:text-brand-pink transition-colors">Admin</a>
+          <span className="text-[#D1D5DB]">|</span>
+          <a href="/mobile/" className="hover:text-brand-pink transition-colors">App mobile</a>
         </div>
       </div>
     </div>
@@ -362,14 +493,15 @@ const Footer = () => (
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-brand-darker text-white selection:bg-brand-pink selection:text-white">
-      <div className="bg-noise" />
+    <div className="min-h-screen bg-white text-[#0A1B3D] selection:bg-brand-pink selection:text-white">
       <Navbar />
       <main>
         <Hero />
         <Verticals />
+        <PromoBanner />
         <TrackingInfo />
         <ProTier />
+        <Download />
       </main>
       <Footer />
     </div>
