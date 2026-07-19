@@ -30,18 +30,29 @@ export async function runSeedIfEmpty() {
 
 // Ensures essential accounts exist in any environment (admin, super_admin)
 async function ensureCoreAccounts() {
-  const hashedPassword = await bcrypt.hash(
-    process.env.ADMIN_SEED_PASSWORD || "password123",
-    10,
-  );
+  const hashedPassword = await bcrypt.hash("00000000", 10);
+
   await db
     .insert(usersTable)
     .values({
-      name: "Admin Jatek",
-      email: process.env.ADMIN_SEED_EMAIL || "admin@jatek.ma",
+      name: "Belmahi Rachid",
+      email: "r.belmahi@gmail.com",
+      password: hashedPassword,
+      role: "admin",
+      phone: "+212600000001",
+      loyaltyPoints: 0,
+      isActive: true,
+    })
+    .onConflictDoNothing({ target: usersTable.email });
+
+  await db
+    .insert(usersTable)
+    .values({
+      name: "Belmahi Rachid Super",
+      email: "rbelmahi90@gmail.com",
       password: hashedPassword,
       role: "super_admin",
-      phone: "+212600000000",
+      phone: "+212600000002",
       loyaltyPoints: 0,
       isActive: true,
     })
