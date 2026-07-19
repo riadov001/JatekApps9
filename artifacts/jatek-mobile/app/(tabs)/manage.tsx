@@ -11,7 +11,7 @@
 import React, { useCallback, useState } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, RefreshControl,
-  StyleSheet, Alert, ActivityIndicator, Platform,
+  StyleSheet, Alert, ActivityIndicator, Platform, Modal, TextInput, Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeInDown, Layout } from "react-native-reanimated";
@@ -178,6 +178,175 @@ function OrderRow({
   );
 }
 
+// ─── Menu Management ────────────────────────────────────────────────────────
+
+type MenuItem = { id: number; name: string; description: string | null; price: number; category: string; imageUrl: string | null; isAvailable: boolean; isPopular: boolean };
+type MenuForm = { name: string; description: string; price: string; category: string; imageUrl: string; isAvailable: boolean; isPopular: boolean };
+const MENU_EMPTY: MenuForm = { name: "", description: "", price: "", category: "", imageUrl: "", isAvailable: true, isPopular: false };
+
+function MenuSection({ restaurant, token, colors }: { restaurant: any; token: string; colors: any }) {
+  const [items, setItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [form, setForm] = useState<MenuForm>(MENU_EMPTY);
+  const [saving, setSaving] = useState(false);
+
+  const fetchItems = React.useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/api/restaurants/${restaurant.id}/menu`);
+      const data = await res.json();
+      setItems(Array.isArray(data) ? data : (data.items ?? []));
+    } catch { /* noop */ } finally { setLoading(false); }
+  }, [restaurant.id]);
+
+  React.useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  const toggleAvailable = async (item: MenuItem) => {
+    try {
+      await fetch(`${apiBase}/api/menu/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ isAvailable: !item.isAvailable }),
+      });
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, isAvailable: !i.isAvailable } : i));
+    } catch { Alert.alert("Erreur", "Impossible de modifier la disponibilité."); }
+  };
+
+  const openCreate = () => { setEditingItem(null); setForm(MENU_EMPTY); setModalOpen(true); };
+  const openEdit = (item: MenuItem) => {
+    setEditingItem(item);
+    setForm({ name: item.name, description: item.description ?? "", price: String(item.price), category: item.category, imageUrl: item.imageUrl ?? "", isAvailable: item.isAvailable, isPopular: item.isPopular });
+    setModalOpen(true);
+  };
+
+  const handleDelete = (item: MenuItem) => {
+    Alert.alert(`Supprimer "${item.name}" ?`, "Action irréversible.", [
+      { text: "Annuler", style: "cancel" },
+      { text: "Supprimer", style: "destructive", onPress: async () => {
+        try {
+          await fetch(`${apiBase}/api/menu/${item.id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+          setItems(prev => prev.filter(i => i.id !== item.id));
+        } catch { Alert.alert("Erreur", "Impossible de supprimer."); }
+      }},
+    ]);
+  };
+
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.price) return;
+    setSaving(true);
+    try {
+      const payload = { name: form.name.trim(), description: form.description || undefined, price: Number(form.price), category: form.category, imageUrl: form.imageUrl || undefined, isAvailable: form.isAvailable, isPopular: form.isPopular };
+      if (editingItem) {
+        await fetch(`${apiBase}/api/menu/${editingItem.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
+      } else {
+        await fetch(`${apiBase}/api/restaurants/${restaurant.id}/menu`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
+      }
+      setModalOpen(false);
+      await fetchItems(true);
+    } catch { Alert.alert("Erreur", "Impossible de sauvegarder."); } finally { setSaving(false); }
+  };
+
+  const grouped: Record<string, MenuItem[]> = {};
+  for (const item of items) { (grouped[item.category || "Autre"] ??= []).push(item); }
+
+  return (
+    <View style={{ flex: 1, minHeight: 300 }}>
+      {loading ? (
+        <View style={[styles.center, { marginTop: 40 }]}><ActivityIndicator color={colors.primary} /></View>
+      ) : items.length === 0 ? (
+        <View style={[styles.center, { marginTop: 40 }]}>
+          <Ionicons name="restaurant-outline" size={48} color={colors.mutedForeground} />
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Menu vide</Text>
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Appuyez sur + pour ajouter vos plats.</Text>
+        </View>
+      ) : (
+        Object.entries(grouped).map(([cat, catItems]) => (
+          <View key={cat}>
+            <Text style={[menuSt.catLabel, { color: colors.mutedForeground }]}>{cat}</Text>
+            {catItems.map(item => (
+              <TouchableOpacity key={item.id} style={[menuSt.itemRow, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => openEdit(item)} onLongPress={() => handleDelete(item)} delayLongPress={600}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                    <Text style={[menuSt.itemName, { color: colors.foreground }]}>{item.name}</Text>
+                    {item.isPopular && <Ionicons name="star" size={11} color="#F59E0B" />}
+                  </View>
+                  {!!item.description && <Text style={[menuSt.itemDesc, { color: colors.mutedForeground }]} numberOfLines={1}>{item.description}</Text>}
+                </View>
+                <Text style={[menuSt.price, { color: colors.primary }]}>{item.price} MAD</Text>
+                <Switch value={item.isAvailable} onValueChange={() => toggleAvailable(item)} trackColor={{ false: colors.muted, true: colors.primary + "60" }} thumbColor={item.isAvailable ? colors.primary : colors.mutedForeground} style={{ transform: [{ scale: 0.85 }] }} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        ))
+      )}
+
+      <TouchableOpacity style={[menuSt.fab, { backgroundColor: colors.primary }]} onPress={openCreate}>
+        <Ionicons name="add" size={26} color="#fff" />
+      </TouchableOpacity>
+
+      <Modal visible={modalOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalOpen(false)}>
+        <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <Text style={[menuSt.modalTitle, { color: colors.foreground }]}>{editingItem ? "Modifier le plat" : "Nouveau plat"}</Text>
+            <TouchableOpacity onPress={() => setModalOpen(false)}><Ionicons name="close" size={24} color={colors.foreground} /></TouchableOpacity>
+          </View>
+          {([
+            { label: "Nom *", key: "name", placeholder: "Ex : Burger Smash", keyboard: "default" },
+            { label: "Prix (MAD) *", key: "price", placeholder: "45", keyboard: "decimal-pad" },
+            { label: "Catégorie", key: "category", placeholder: "Burgers, Pizzas…", keyboard: "default" },
+            { label: "Image (URL)", key: "imageUrl", placeholder: "https://…", keyboard: "url" },
+          ] as const).map(({ label, key, placeholder, keyboard }) => (
+            <View key={key} style={{ marginBottom: 14 }}>
+              <Text style={[menuSt.fieldLabel, { color: colors.mutedForeground }]}>{label}</Text>
+              <TextInput
+                style={[menuSt.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
+                value={form[key]} onChangeText={v => setForm({ ...form, [key]: v })}
+                placeholder={placeholder} placeholderTextColor={colors.mutedForeground}
+                keyboardType={keyboard as any} autoCapitalize="none"
+              />
+            </View>
+          ))}
+          <View style={{ marginBottom: 14 }}>
+            <Text style={[menuSt.fieldLabel, { color: colors.mutedForeground }]}>Description</Text>
+            <TextInput style={[menuSt.input, menuSt.textArea, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]} value={form.description} onChangeText={v => setForm({ ...form, description: v })} multiline numberOfLines={3} placeholder="Description courte…" placeholderTextColor={colors.mutedForeground} />
+          </View>
+          {([["isAvailable", "Disponible"] as const, ["isPopular", "Populaire ⭐"] as const]).map(([key, label]) => (
+            <View key={key} style={[menuSt.switchRow, { borderBottomColor: colors.border }]}>
+              <Text style={[menuSt.switchLabel, { color: colors.foreground }]}>{label}</Text>
+              <Switch value={form[key]} onValueChange={v => setForm({ ...form, [key]: v })} trackColor={{ false: colors.muted, true: colors.primary + "60" }} thumbColor={form[key] ? colors.primary : colors.mutedForeground} />
+            </View>
+          ))}
+          <TouchableOpacity
+            style={[menuSt.saveBtn, { backgroundColor: colors.primary, opacity: saving || !form.name.trim() || !form.price ? 0.5 : 1 }]}
+            onPress={handleSave} disabled={saving || !form.name.trim() || !form.price}
+          >
+            {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={menuSt.saveBtnText}>{editingItem ? "Enregistrer" : "Créer"}</Text>}
+          </TouchableOpacity>
+        </ScrollView>
+      </Modal>
+    </View>
+  );
+}
+
+const menuSt = StyleSheet.create({
+  catLabel: { fontSize: 11, fontFamily: "Inter_700Bold", textTransform: "uppercase", letterSpacing: 0.5, marginTop: 14, marginBottom: 6 },
+  itemRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
+  itemName: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  itemDesc: { fontSize: 11, marginTop: 2 },
+  price: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  fab: { position: "absolute", bottom: 20, right: 0, width: 50, height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center", elevation: 4, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
+  modalTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: "Inter_400Regular" },
+  textArea: { textAlignVertical: "top", minHeight: 80 },
+  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  switchLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  saveBtn: { paddingVertical: 14, borderRadius: 14, alignItems: "center", marginTop: 24 },
+  saveBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_700Bold" },
+  fieldLabel: { fontSize: 12, fontFamily: "Inter_500Medium", marginBottom: 6 },
+});
+
 export default function ManageScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -209,6 +378,7 @@ export default function ManageScreen() {
     }
   );
 
+  const [section, setSection] = useState<"orders" | "menu">("orders");
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [newOrderBanner, setNewOrderBanner] = useState<any | null>(null);
@@ -312,6 +482,26 @@ export default function ManageScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Section tabs */}
+        <View style={styles.sectionTabRow}>
+          {(["orders", "menu"] as const).map((s) => (
+            <TouchableOpacity
+              key={s}
+              style={[styles.sectionTab, section === s && { backgroundColor: colors.primary }]}
+              onPress={() => setSection(s)}
+            >
+              <Ionicons
+                name={s === "orders" ? "list-outline" : "restaurant-outline"}
+                size={14}
+                color={section === s ? "#fff" : colors.mutedForeground}
+              />
+              <Text style={[styles.sectionTabText, { color: section === s ? "#fff" : colors.mutedForeground }]}>
+                {s === "orders" ? "Commandes" : "Menu"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Profile completion gate */}
         {!profileComplete && (
           <Animated.View entering={FadeIn.duration(350)}>
@@ -365,32 +555,40 @@ export default function ManageScreen() {
         </View>
 
         {/* Orders list */}
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-          Commandes actives · {activeOrders.length}
-        </Text>
+        {section === "orders" && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+              Commandes actives · {activeOrders.length}
+            </Text>
 
-        {isLoading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={colors.primary} />
-          </View>
-        ) : activeOrders.length === 0 ? (
-          <View style={[styles.center, { marginTop: 40 }]}>
-            <Ionicons name="checkmark-circle-outline" size={48} color={colors.mutedForeground} />
-            <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucune commande en cours</Text>
-            <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Tirez vers le bas pour actualiser.</Text>
-          </View>
-        ) : (
-          activeOrders
-            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-            .map(order => (
-              <OrderRow
-                key={order.id}
-                order={order}
-                profileComplete={profileComplete}
-                onAction={handleAction}
-                actionLoading={actionLoading}
-              />
-            ))
+            {isLoading ? (
+              <View style={styles.center}>
+                <ActivityIndicator color={colors.primary} />
+              </View>
+            ) : activeOrders.length === 0 ? (
+              <View style={[styles.center, { marginTop: 40 }]}>
+                <Ionicons name="checkmark-circle-outline" size={48} color={colors.mutedForeground} />
+                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Aucune commande en cours</Text>
+                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Tirez vers le bas pour actualiser.</Text>
+              </View>
+            ) : (
+              activeOrders
+                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                .map(order => (
+                  <OrderRow
+                    key={order.id}
+                    order={order}
+                    profileComplete={profileComplete}
+                    onAction={handleAction}
+                    actionLoading={actionLoading}
+                  />
+                ))
+            )}
+          </>
+        )}
+
+        {section === "menu" && (
+          <MenuSection restaurant={myRestaurant} token={token!} colors={colors} />
         )}
       </ScrollView>
     </View>
@@ -453,4 +651,12 @@ const styles = StyleSheet.create({
 
   emptyTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold", textAlign: "center" },
   emptyText: { fontSize: 12, textAlign: "center", paddingHorizontal: 32 },
+
+  sectionTabRow: { flexDirection: "row", gap: 8, marginBottom: 14 },
+  sectionTab: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: "transparent",
+    backgroundColor: "rgba(0,0,0,0.06)",
+  },
+  sectionTabText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 });

@@ -4,6 +4,8 @@ import {
   useListBackendShops,
   useBackendMe,
   getListBackendProductsQueryKey,
+  useListBackendCategories,
+  getListBackendCategoriesQueryKey,
 } from "@workspace/api-client-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -12,9 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Plus, Pencil, Trash2, Loader2, Settings2 } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, Loader2, Settings2, Tags, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -136,6 +139,12 @@ export default function Products() {
         </Dialog>
       </div>
 
+      <Tabs defaultValue="produits">
+        <TabsList>
+          <TabsTrigger value="produits" className="gap-1.5"><Package className="h-4 w-4" />Produits</TabsTrigger>
+          <TabsTrigger value="categories" className="gap-1.5"><Tags className="h-4 w-4" />Catégories menu</TabsTrigger>
+        </TabsList>
+        <TabsContent value="produits" className="pt-4">
       <Card>
         <CardHeader className="pb-4">
           <div className="relative w-full sm:w-72">
@@ -188,6 +197,12 @@ export default function Products() {
         </CardContent>
       </Card>
 
+        </TabsContent>
+        <TabsContent value="categories" className="pt-4">
+          <ProductMenuCategories />
+        </TabsContent>
+      </Tabs>
+
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>Modifier {editing?.name}</DialogTitle></DialogHeader>
@@ -202,6 +217,151 @@ export default function Products() {
 
       <OptionsDialogWrapper product={optionsProduct} onClose={() => setOptionsProduct(null)} />
     </div>
+  );
+}
+
+// ─── Product Menu Categories ────────────────────────────────────────────────
+
+type MenuCat = { id: number; restaurantId: number | null; name: string; sortOrder: number; isActive: boolean };
+
+function ProductMenuCategories() {
+  const { data: me } = useBackendMe();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const isAdmin = !!me && ["super_admin", "admin", "manager"].includes(me.user.role);
+  const { data: shops } = useListBackendShops({});
+
+  const { data: productCats, isLoading: pcLoading } = useQuery<MenuCat[]>({
+    queryKey: ["/api/backend/menu-categories"],
+    queryFn: () => apiFetch("/api/backend/menu-categories"),
+  });
+
+  const [newCat, setNewCat] = useState({ name: "", restaurantId: "", sortOrder: "0" });
+  const [creating, setCreating] = useState(false);
+  const [renaming, setRenaming] = useState<{ id: number; name: string } | null>(null);
+  const [newName, setNewName] = useState("");
+  const [deleting, setDeleting] = useState<MenuCat | null>(null);
+
+  const invalidatePC = () => qc.invalidateQueries({ queryKey: ["/api/backend/menu-categories"] });
+
+  const createMutation = useMutation({
+    mutationFn: () => apiFetch("/api/backend/menu-categories", {
+      method: "POST",
+      body: JSON.stringify({ name: newCat.name.trim(), restaurantId: newCat.restaurantId ? Number(newCat.restaurantId) : null, sortOrder: Number(newCat.sortOrder) || 0 }),
+    }),
+    onSuccess: () => { invalidatePC(); setCreating(false); setNewCat({ name: "", restaurantId: "", sortOrder: "0" }); toast({ title: "Catégorie créée" }); },
+    onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+  });
+
+  const renameMutation = useMutation({
+    mutationFn: ({ id, name }: { id: number; name: string }) =>
+      apiFetch(`/api/backend/menu-categories/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+    onSuccess: () => { invalidatePC(); setRenaming(null); toast({ title: "Renommée" }); },
+    onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiFetch(`/api/backend/menu-categories/${id}`, { method: "DELETE" }),
+    onSuccess: () => { invalidatePC(); setDeleting(null); toast({ title: "Supprimée" }); },
+    onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+  });
+
+  return (
+    <Card className="max-w-3xl">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <h2 className="text-base font-semibold">Catégories de produits</h2>
+        {isAdmin && <Button size="sm" onClick={() => setCreating(true)} className="gap-2"><Plus className="h-4 w-4" />Nouvelle</Button>}
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nom</TableHead>
+              <TableHead className="hidden sm:table-cell">Restaurant</TableHead>
+              <TableHead className="hidden sm:table-cell">Ordre</TableHead>
+              {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {pcLoading ? Array.from({ length: 4 }).map((_, i) => (
+              <TableRow key={i}><TableCell><Skeleton className="h-4 w-32" /></TableCell><TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-20" /></TableCell><TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-8" /></TableCell>{isAdmin && <TableCell />}</TableRow>
+            )) : productCats?.length === 0 ? (
+              <TableRow><TableCell colSpan={isAdmin ? 4 : 3} className="h-24 text-center text-muted-foreground">Aucune catégorie produit.</TableCell></TableRow>
+            ) : productCats?.map((cat) => (
+              <TableRow key={cat.id}>
+                <TableCell className="font-medium">{cat.name}</TableCell>
+                <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">
+                  {cat.restaurantId
+                    ? (shops as any[] | undefined)?.find((s: any) => s.id === cat.restaurantId)?.name ?? `#${cat.restaurantId}`
+                    : <Badge variant="secondary">Global</Badge>}
+                </TableCell>
+                <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">{cat.sortOrder}</TableCell>
+                {isAdmin && (
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => { setRenaming({ id: cat.id, name: cat.name }); setNewName(cat.name); }}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleting(cat)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+
+      <Dialog open={creating} onOpenChange={(o) => !o && setCreating(false)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Nouvelle catégorie produit</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); if (newCat.name.trim()) createMutation.mutate(); }} className="space-y-4 pt-2">
+            <div className="space-y-1"><Label className="text-xs">Nom *</Label><Input value={newCat.name} onChange={(e) => setNewCat({ ...newCat, name: e.target.value })} required autoFocus /></div>
+            <div className="space-y-1">
+              <Label className="text-xs">Restaurant (vide = global)</Label>
+              <Select value={newCat.restaurantId || "global"} onValueChange={(v) => setNewCat({ ...newCat, restaurantId: v === "global" ? "" : v })}>
+                <SelectTrigger><SelectValue placeholder="Global" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="global">— Global —</SelectItem>
+                  {(shops as any[] | undefined)?.map((s: any) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1"><Label className="text-xs">Ordre</Label><Input type="number" value={newCat.sortOrder} onChange={(e) => setNewCat({ ...newCat, sortOrder: e.target.value })} /></div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setCreating(false)}>Annuler</Button>
+              <Button type="submit" disabled={createMutation.isPending || !newCat.name.trim()}>{createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Créer</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!renaming} onOpenChange={(o) => !o && setRenaming(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Renommer «{renaming?.name}»</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); if (renaming && newName.trim()) renameMutation.mutate({ id: renaming.id, name: newName.trim() }); }} className="space-y-4 pt-2">
+            <div className="space-y-1"><Label className="text-xs">Nouveau nom</Label><Input value={newName} onChange={(e) => setNewName(e.target.value)} required /></div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setRenaming(null)}>Annuler</Button>
+              <Button type="submit" disabled={renameMutation.isPending || !newName.trim() || newName.trim() === renaming?.name}>{renameMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Renommer</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer «{deleting?.name}» ?</AlertDialogTitle>
+            <AlertDialogDescription>Action irréversible.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleting && deleteMutation.mutate(deleting.id)} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
   );
 }
 

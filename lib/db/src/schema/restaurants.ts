@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, boolean, integer, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean, integer, real, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -32,6 +32,11 @@ export const restaurantsTable = pgTable("restaurants", {
   printerEmail: text("printer_email"),
   /** Set when the owner has filled in the mandatory business details. */
   profileCompletedAt: timestamp("profile_completed_at", { withTimezone: true }),
+  /** GPS coordinates (WGS-84) for delivery ETA calculation and map display. */
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
+  /** Whether this restaurant is pinned in the "featured" home carousel. */
+  isFeatured: boolean("is_featured").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

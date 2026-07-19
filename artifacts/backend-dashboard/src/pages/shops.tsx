@@ -29,7 +29,7 @@ const defaultHours = (): HourRow[] => Array.from({ length: 7 }, (_, i) => ({ day
 const EMPTY = {
   name: "", description: "", address: "", phone: "", category: "restaurant",
   imageUrl: "", logoUrl: "", deliveryTime: "", deliveryFee: "", minimumOrder: "", isOpen: true,
-  ownerId: "",
+  ownerId: "", isFeatured: false,
 };
 
 export default function Shops() {
@@ -83,6 +83,7 @@ export default function Shops() {
     deliveryFee: f.deliveryFee ? Number(f.deliveryFee) : undefined,
     minimumOrder: f.minimumOrder ? Number(f.minimumOrder) : undefined,
     ownerId: f.ownerId ? Number(f.ownerId) : undefined,
+    isFeatured: f.isFeatured ?? false,
   });
 
   const createMutation = useMutation({
@@ -117,6 +118,7 @@ export default function Shops() {
       deliveryTime: String(s.deliveryTime ?? ""), deliveryFee: String(s.deliveryFee ?? ""),
       minimumOrder: String(s.minimumOrder ?? ""), isOpen: !!s.isOpen,
       ownerId: s.ownerId ? String(s.ownerId) : "",
+      isFeatured: !!(s as any).isFeatured,
     });
   };
 
@@ -161,6 +163,7 @@ export default function Shops() {
                 <TableHead className="hidden sm:table-cell">Catégorie</TableHead>
                 <TableHead className="hidden md:table-cell">Contact</TableHead>
                 <TableHead className="hidden md:table-cell">Note</TableHead>
+                <TableHead className="hidden lg:table-cell">Vedette</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -199,6 +202,7 @@ export default function Shops() {
                       <span className="text-xs text-muted-foreground">({shop.reviewCount})</span>
                     </div>
                   </TableCell>
+                  <TableCell className="hidden lg:table-cell">{(shop as any).isFeatured ? <Star className="h-4 w-4 fill-amber-400 text-amber-400" /> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
                   <TableCell><Badge className={shop.isOpen ? "bg-green-500 hover:bg-green-600" : "bg-destructive"}>{shop.isOpen ? "Ouvert" : "Fermé"}</Badge></TableCell>
                   <TableCell className="text-right space-x-1">
                     <Button variant="ghost" size="icon" className="h-10 w-10" title="Horaires" onClick={() => openHours(shop.id)}><Clock className="h-4 w-4" /></Button>
@@ -288,6 +292,10 @@ function ShopForm({ form, setForm, onSubmit, pending, submitLabel, extra, ownerC
             </Select>
           </Field>
         )}
+      </div>
+      <div className="flex items-center gap-2 pt-1">
+        <Switch checked={form.isFeatured} onCheckedChange={(v: boolean) => set("isFeatured", v)} id="featured-switch" />
+        <Label htmlFor="featured-switch" className="text-sm cursor-pointer">Mis en avant (vedette home)</Label>
       </div>
       {extra}
       <DialogFooter className="pt-4">

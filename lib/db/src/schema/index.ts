@@ -26,3 +26,4 @@ export * from "./activityLogs";
 export * from "./restaurantHours";
 export * from "./refunds";
 export * from "./platformSettings";
+export * from "./appConfig";

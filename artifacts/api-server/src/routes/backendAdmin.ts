@@ -22,6 +22,7 @@ import {
   activityLogsTable,
   restaurantHoursTable,
   refundsTable,
+  appConfigTable,
 } from "@workspace/db";
 import { eq, and, desc, sql, count, inArray } from "drizzle-orm";
 import { requireAuth, type AuthedRequest } from "../middlewares/auth";
@@ -691,6 +692,8 @@ router.get("/backend/system", requireAuth, async (req: AuthedRequest, res, next)
       uptimeHuman: formatUptime(uptimeSeconds),
       nodeVersion: process.version,
       environment: process.env.NODE_ENV ?? "development",
+      /** Configured via --max-old-space-size=4096 in the start script. */
+      heapMaxConfigured: 4096,
       memory: {
         heapUsed: mem.heapUsed,
         heapTotal: mem.heapTotal,
@@ -797,5 +800,58 @@ export function startRestaurantAutoCloseScheduler() {
   tick(); // run immediately on start
   console.info("[scheduler] restaurant auto-close started");
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// APP CONFIG (public read + admin write)
+// ────────────────────────────────────────────────────────────────────────────
+
+const DEFAULT_APP_CONFIG: Record<string, unknown> = {
+  defaultLanguage: "fr",
+  maintenanceMode: false,
+  featuredCount: 6,
+  homeOrder: ["banners", "categories", "featured", "all"],
+  welcomeMessage: "Bienvenue sur Jatek !",
+};
+
+async function getAppConfig(): Promise<Record<string, unknown>> {
+  const rows = await db.select().from(appConfigTable);
+  const config = { ...DEFAULT_APP_CONFIG };
+  for (const row of rows) {
+    config[row.key] = row.value;
+  }
+  return config;
+}
+
+/** Public endpoint read by the mobile app at startup (no auth required). */
+router.get("/app-config", async (_req, res, next): Promise<void> => {
+  try { res.json(await getAppConfig()); }
+  catch (err) { next(err); }
+});
+
+/** Admin: read full config */
+router.get("/backend/app-config", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  if (!isSuperAdmin(req.userRole)) { res.status(403).json({ error: "Forbidden" }); return; }
+  try { res.json(await getAppConfig()); }
+  catch (err) { next(err); }
+});
+
+/** Admin: upsert one or more config keys */
+router.put("/backend/app-config", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
+  if (!isSuperAdmin(req.userRole)) { res.status(403).json({ error: "Forbidden" }); return; }
+  try {
+    const entries = Object.entries(req.body ?? {});
+    if (entries.length === 0) { res.status(400).json({ error: "No config keys provided" }); return; }
+    for (const [key, value] of entries) {
+      await db
+        .insert(appConfigTable)
+        .values({ key, value })
+        .onConflictDoUpdate({
+          target: appConfigTable.key,
+          set: { value: value as any, updatedAt: new Date() },
+        });
+    }
+    res.json({ ok: true, updated: entries.length });
+  } catch (err) { next(err); }
+});
 
 export default router;

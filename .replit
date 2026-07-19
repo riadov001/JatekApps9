@@ -113,4 +113,4 @@ ALLOWED_ORIGINS = "https://c242aedf-c2ef-40b5-8095-e3992aa34a14-00-1y412fgtbqgy8
 EXPO_PUBLIC_PROJECT_ID = "2437ecfc-9682-4b07-9eaa-77f6206b4714"
 
   [objectStorage]
-defaultBucketID = "replit-objstore-ebebe30b-ff72-4fb3-ba09-6cc0a2a4e98f"
+defaultBucketID = "replit-objstore-904aeb5a-33bb-479c-821a-13f4b20b85cc"

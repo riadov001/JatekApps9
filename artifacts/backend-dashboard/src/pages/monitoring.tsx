@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 
 interface SystemInfo {
   uptime: number; uptimeHuman: string; nodeVersion: string; environment: string;
+  /** Configured via --max-old-space-size in the start script (MB). */
+  heapMaxConfigured?: number;
   memory: { heapUsed: number; heapTotal: number; rss: number; external: number; systemTotal: number; systemFree: number; systemUsedPercent: number };
   cpu: { loadAvg1: number; loadAvg5: number; loadAvg15: number; cores: number; model: string };
   platform: string; arch: string; hostname: string;
@@ -94,7 +96,8 @@ export default function Monitoring() {
 
   const loadPct = data ? Math.min(100, Math.round((data.cpu.loadAvg1 / data.cpu.cores) * 100)) : 0;
   const memPct = data?.memory.systemUsedPercent ?? 0;
-  const heapPct = data ? Math.round((data.memory.heapUsed / data.memory.heapTotal) * 100) : 0;
+  const HEAP_MAX_BYTES = (data?.heapMaxConfigured ?? 512) * 1024 * 1024;
+  const heapPct = data ? Math.min(100, Math.round((data.memory.heapUsed / HEAP_MAX_BYTES) * 100)) : 0;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -138,7 +141,7 @@ export default function Monitoring() {
         <KpiCard icon={Clock} label="Uptime" value={isLoading ? "…" : data!.uptimeHuman} sub={data?.environment} />
         <KpiCard icon={Cpu} label="CPU (1m avg)" value={isLoading ? "…" : `${loadPct}%`} sub={`${data?.cpu.cores ?? "?"} cœurs`} color="text-blue-600" />
         <KpiCard icon={HardDrive} label="RAM système" value={isLoading ? "…" : `${memPct}%`} sub={data ? `${fmt(data.memory.systemFree)} libre` : ""} color="text-orange-600" />
-        <KpiCard icon={Server} label="Heap Node.js" value={isLoading ? "…" : `${fmt(data!.memory.heapUsed)}`} sub={data ? `/ ${fmt(data.memory.heapTotal)}` : ""} color="text-purple-600" />
+        <KpiCard icon={Server} label="Heap Node.js" value={isLoading ? "…" : `${fmt(data!.memory.heapUsed)}`} sub={data ? `/ ${data.heapMaxConfigured ?? 512} MB max` : ""} color="text-purple-600" />
       </div>
 
       {/* CPU + Memory charts */}
@@ -189,7 +192,7 @@ export default function Monitoring() {
                     <span className="font-mono font-medium">{heapPct}%</span>
                   </div>
                   <ProgressBar value={heapPct} max={100} color={heapPct > 85 ? "bg-red-500" : "bg-blue-500"} />
-                  <p className="text-xs text-muted-foreground mt-1">{fmt(data!.memory.heapUsed)} / {fmt(data!.memory.heapTotal)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{fmt(data!.memory.heapUsed)} / {data!.heapMaxConfigured ?? 512} MB configuré</p>
                 </div>
                 <div className="text-xs text-muted-foreground">RSS: {fmt(data!.memory.rss)}</div>
               </>

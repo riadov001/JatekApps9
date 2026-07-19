@@ -14,6 +14,7 @@ export const ADMIN_ONLY_PATHS = new Set([
   "/deliverymen",
   "/banners",
   "/live-tracking",
+  "/app-config",
 ]);
 
 /**
