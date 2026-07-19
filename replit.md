@@ -4,15 +4,28 @@ Jatek is a full-stack food delivery application serving Oujda, Morocco, connecti
 
 ## Run & Operate
 
+### Workflows (Replit)
+- **"Start application"** — Backend dashboard (Vite) on port 5000 (`PORT=5000 BASE_PATH=/ pnpm --filter @workspace/backend-dashboard run dev`)
+- **"artifacts/api-server: API Server"** — Express API on port 8080 (`pnpm --filter @workspace/api-server run dev`)
+
+### CLI
+- `pnpm install`: Install all workspace dependencies.
+- `pnpm --filter @workspace/db run push`: Push DB schema changes (development only).
+- `pnpm --filter @workspace/api-server run dev:push`: Run API server with DB schema push.
+- `pnpm --filter @workspace/api-spec run codegen`: Regenerate API hooks and Zod schemas from OpenAPI spec.
 - `pnpm run typecheck`: Full typecheck across all packages.
 - `pnpm run build`: Typecheck and build all packages.
-- `pnpm --filter @workspace/api-spec run codegen`: Regenerate API hooks and Zod schemas from OpenAPI spec.
-- `pnpm --filter @workspace/db run push`: Push DB schema changes (development only).
-- `pnpm --filter @workspace/api-server run dev`: Run API server locally.
-- `pnpm --filter @workspace/api-server run dev:push`: Run API server locally with DB schema push.
-- `psql $DATABASE_URL`: Apply schema changes directly via SQL.
+- `psql $DATABASE_URL`: Direct DB access via SQL.
 
-**Environment Variables**: `EXPO_TOKEN`, `EXPO_PUBLIC_DOMAIN`, `EXPO_PUBLIC_GOOGLE_MAPS_KEY`, `EXPO_PUBLIC_GOOGLE_PLACES_KEY`, `ADMIN_SEED_EMAIL`, `ADMIN_SEED_PASSWORD`, `DATABASE_URL`.
+### Secrets required
+- `SESSION_SECRET` — JWT signing secret (also used as cookie secret)
+- `VAPID_PRIVATE_KEY` — Web push notification private key
+- Optional: `TWILIO_*`, `INFOBIP_*`, `RESEND_*`, `EXPO_TOKEN`, `GOOGLE_MAPS_KEY` for SMS/email/mobile features
+
+### Env vars (non-secret)
+- `DATABASE_URL` — Runtime-managed by Replit (PostgreSQL auto-provisioned)
+- `VAPID_PUBLIC_KEY` — Web push public key (set in shared env)
+- `EXPO_PUBLIC_DOMAIN` — Public domain for mobile API calls (set in shared env)
 
 ## Stack
 
