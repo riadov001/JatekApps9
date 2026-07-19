@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "bash"]
+modules = ["nodejs-20", "web", "bash", "postgresql-16"]
 
   [deployment]
   router = "application"
@@ -31,7 +31,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "EXPO_PUBLIC_DOMAIN=ma.jatek.app EXPO_PUBLIC_REPL_ID=$REPL_ID pnpm --filter @workspace/jatek-mobile exec expo start --web --port 5000"
+args = "PORT=5000 BASE_PATH=/ pnpm --filter @workspace/backend-dashboard run dev"
 waitForPort = 5000
 
   [agent]
@@ -98,6 +98,8 @@ channel = "stable-25_05"
   [userenv]
 
   [userenv.shared]
+VAPID_PUBLIC_KEY = "BLvX52wA4BwrhPabN3D4gcmgP-FR8mZOOZs9S-fPW9jQ8PUp7xqG8mCfelF9DPBBAdSYBHANTIv1W5LPlxMra_g"
+VAPID_SUBJECT = "mailto:admin@jatek.ma"
 
   [userenv.development]
   INFOBIP_WA_SENDER = "+15072600620"
