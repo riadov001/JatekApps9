@@ -15,7 +15,7 @@ import { notifyDrivers } from "../lib/expoPush";
 
 const router: IRouter = Router();
 
-router.get("/drivers", async (req, res): Promise<void> => {
+router.get("/drivers", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const queryParams = ListDriversQueryParams.safeParse(req.query);
 
   let conditions: any[] = [];
@@ -31,7 +31,7 @@ router.get("/drivers", async (req, res): Promise<void> => {
   res.json(drivers);
 });
 
-router.get("/drivers/:id", async (req, res): Promise<void> => {
+router.get("/drivers/:id", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const params = GetDriverParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -251,7 +251,7 @@ router.patch("/drivers/me/push-token", requireAuth, async (req: AuthedRequest, r
   res.json({ ok: true });
 });
 
-router.get("/drivers/:id/location", async (req, res): Promise<void> => {
+router.get("/drivers/:id/location", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid driver id" }); return; }
 

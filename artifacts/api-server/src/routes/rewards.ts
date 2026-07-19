@@ -1,11 +1,9 @@
 import { Router, type IRouter } from "express";
 import { db, usersTable, ordersTable } from "@workspace/db";
 import { eq, count, sum } from "drizzle-orm";
-import jwt from "jsonwebtoken";
+import { requireAuth, type AuthedRequest } from "../middlewares/auth";
 
 const router: IRouter = Router();
-
-const JWT_SECRET = process.env.SESSION_SECRET || "jatek-secret-2024";
 
 function getTier(points: number): string {
   if (points >= 500) return "Gold";
@@ -19,19 +17,8 @@ function getNextTierPoints(points: number): number {
   return 100 - points;
 }
 
-router.get("/rewards/my", async (req, res): Promise<void> => {
-  const authHeader = req.headers.authorization;
-  let userId = 1;
-
-  if (authHeader?.startsWith("Bearer ")) {
-    try {
-      const token = authHeader.split(" ")[1];
-      const payload = jwt.verify(token, JWT_SECRET) as { userId: number };
-      userId = payload.userId;
-    } catch {
-      // use default
-    }
-  }
+router.get("/rewards/my", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const userId = req.userId!;
 
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
 

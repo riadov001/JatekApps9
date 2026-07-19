@@ -3,10 +3,10 @@ import jwt from "jsonwebtoken";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
-const JWT_SECRET = process.env.SESSION_SECRET || "jatek-secret-2024";
-if (!process.env.SESSION_SECRET && process.env.NODE_ENV === "production") {
-  throw new Error("SESSION_SECRET environment variable is required in production");
+if (!process.env.SESSION_SECRET) {
+  throw new Error("SESSION_SECRET environment variable is required");
 }
+const JWT_SECRET = process.env.SESSION_SECRET;
 
 export interface AuthedRequest extends Request {
   userId?: number;
@@ -29,7 +29,18 @@ async function decodeUser(req: Request): Promise<DecodedUser | null> {
   if (header && header.startsWith("Bearer ")) {
     token = header.slice(7);
   } else if (typeof req.query.token === "string" && req.query.token.length > 0) {
-    token = req.query.token;
+    // ?token= is accepted only for endpoints that browsers must reach without
+    // custom headers: the SSE stream (EventSource cannot set Authorization)
+    // and order invoice downloads (opened via Linking/window.open).
+    // req.path is the sub-path after the "/api" mount, so use req.originalUrl
+    // for a reliable full-path check.
+    const rawPath = req.originalUrl.split("?")[0];
+    const isAllowedQueryTokenPath =
+      rawPath === "/api/events" ||
+      rawPath.endsWith("/invoice");
+    if (isAllowedQueryTokenPath) {
+      token = req.query.token;
+    }
   }
   if (!token) return null;
   try {

@@ -107,10 +107,11 @@ export async function completeDriverProfile(driverId: number, data: DriverProfil
   });
 }
 
-export async function updateDriverLocation(driverId: number, lat: number, lng: number): Promise<void> {
+export async function updateDriverLocation(driverId: number, lat: number, lng: number, signal?: AbortSignal): Promise<void> {
   await jsonFetch(`/api/drivers/${driverId}/location`, {
     method: "PATCH",
     body: JSON.stringify({ latitude: lat, longitude: lng }),
+    signal,
   });
 }
 

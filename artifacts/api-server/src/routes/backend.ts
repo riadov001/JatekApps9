@@ -22,7 +22,7 @@ import * as tracking from "../lib/trackingService";
 
 const router: IRouter = Router();
 
-const JWT_SECRET = process.env.SESSION_SECRET || "jatek-secret-2024";
+const JWT_SECRET = process.env.SESSION_SECRET!; // validated at startup by auth middleware
 
 // ---------- Roles + permissions ----------
 type RoleKey = "super_admin" | "admin" | "manager" | "restaurant_owner" | "employee" | "customer" | "driver" | "other";
@@ -216,7 +216,8 @@ router.get("/backend/me", requireAuth, async (req: AuthedRequest, res): Promise<
   const ctx = await requireBackendUser(req, res);
   if (!ctx) return;
   const [u] = await db.select().from(usersTable).where(eq(usersTable.id, ctx.id)).limit(1);
-  const { password: _p, ...safe } = u!;
+  if (!u) { res.status(404).json({ error: "User not found" }); return; }
+  const { password: _p, ...safe } = u;
   const scoped = await getScopedShopIds(ctx.id, ctx.role, ctx.assignedShopId);
   res.json({
     user: safe,

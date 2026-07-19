@@ -8,7 +8,7 @@ import { sendOtpMessage, sendOtpEmail, anyOtpProviderConfigured } from "../lib/o
 
 const router: IRouter = Router();
 
-const JWT_SECRET = process.env.SESSION_SECRET || "jatek-secret-2024";
+const JWT_SECRET = process.env.SESSION_SECRET!; // validated at startup by auth middleware
 const OTP_EXPIRY_MINUTES = 5;
 const OTP_MAX_ATTEMPTS = 3;
 const OTP_RATE_LIMIT_MINUTES = 1;
@@ -43,7 +43,10 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     return;
   }
 
-  const { name, email, password, role, phone } = parsed.data;
+  const { name, email, password, phone } = parsed.data;
+  // Public registration always creates a customer — elevated roles (admin,
+  // super_admin, driver, etc.) must be assigned through the backend panel.
+  const role = "customer";
   const existing = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing.length > 0) {
     res.status(400).json({ error: "Email already registered" });
@@ -246,7 +249,8 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
 
   if (!user) {
     const userName = name?.trim() || `User ${normalizedPhone.slice(-4)}`;
-    const userRole = role || "customer";
+    // OTP-created accounts are always customers — elevated roles must be assigned via the admin panel.
+    const userRole = "customer";
     const placeholderEmail = `sms_${normalizedPhone.replace(/[^0-9]/g, "")}@jatek.local`;
     const dummyPassword = await bcrypt.hash(Math.random().toString(36), 10);
 

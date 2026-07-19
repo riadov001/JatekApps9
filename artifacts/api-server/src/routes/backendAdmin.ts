@@ -136,7 +136,8 @@ router.patch("/backend/ads/:id", requireAuth, async (req: AuthedRequest, res, ne
     if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
     const allowed = ["type", "title", "subtitle", "badge", "bgColor", "accentColor", "icon", "imageUrl", "linkUrl", "isActive", "sortOrder"];
     const updates: Record<string, unknown> = {};
-    for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];
+    const body = req.body ?? {};
+    for (const k of allowed) if (body[k] !== undefined) updates[k] = body[k];
     const [ad] = await db.update(adsTable).set(updates as any).where(eq(adsTable.id, id)).returning();
     if (!ad) { res.status(404).json({ error: "Not found" }); return; }
     const [u] = await db.select({ name: usersTable.name, email: usersTable.email }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
@@ -191,31 +192,33 @@ router.put("/backend/shops/:id/hours", requireAuth, async (req: AuthedRequest, r
       if (owned.length === 0) { res.status(403).json({ error: "Forbidden: not your restaurant" }); return; }
     }
     if (isNaN(shopId)) { res.status(400).json({ error: "Invalid id" }); return; }
-    const { hours } = req.body;
+    const { hours } = req.body ?? {};
     if (!Array.isArray(hours)) { res.status(400).json({ error: "hours[] requis" }); return; }
 
-    for (const h of hours) {
-      const day = Number(h.dayOfWeek);
-      if (isNaN(day) || day < 0 || day > 6) continue;
-      const existing = await db.select({ id: restaurantHoursTable.id })
-        .from(restaurantHoursTable)
-        .where(and(eq(restaurantHoursTable.restaurantId, shopId), eq(restaurantHoursTable.dayOfWeek, day)))
-        .limit(1);
-      if (existing.length > 0) {
-        await db.update(restaurantHoursTable).set({
-          openTime: h.openTime ?? "09:00",
-          closeTime: h.closeTime ?? "22:00",
-          isClosed: h.isClosed ?? false,
-        }).where(eq(restaurantHoursTable.id, existing[0].id));
-      } else {
-        await db.insert(restaurantHoursTable).values({
-          restaurantId: shopId, dayOfWeek: day,
-          openTime: h.openTime ?? "09:00",
-          closeTime: h.closeTime ?? "22:00",
-          isClosed: h.isClosed ?? false,
-        });
+    await db.transaction(async (tx) => {
+      for (const h of hours) {
+        const day = Number(h.dayOfWeek);
+        if (isNaN(day) || day < 0 || day > 6) continue;
+        const existing = await tx.select({ id: restaurantHoursTable.id })
+          .from(restaurantHoursTable)
+          .where(and(eq(restaurantHoursTable.restaurantId, shopId), eq(restaurantHoursTable.dayOfWeek, day)))
+          .limit(1);
+        if (existing.length > 0) {
+          await tx.update(restaurantHoursTable).set({
+            openTime: h.openTime ?? "09:00",
+            closeTime: h.closeTime ?? "22:00",
+            isClosed: h.isClosed ?? false,
+          }).where(eq(restaurantHoursTable.id, existing[0].id));
+        } else {
+          await tx.insert(restaurantHoursTable).values({
+            restaurantId: shopId, dayOfWeek: day,
+            openTime: h.openTime ?? "09:00",
+            closeTime: h.closeTime ?? "22:00",
+            isClosed: h.isClosed ?? false,
+          });
+        }
       }
-    }
+    });
 
     const result = await db.select().from(restaurantHoursTable)
       .where(eq(restaurantHoursTable.restaurantId, shopId))
@@ -392,15 +395,21 @@ router.patch("/backend/users/:id/wallet-credit", requireAuth, async (req: Authed
   } catch (err) { next(err); }
 });
 
-/** Update any user's role (admin only) */
+const ASSIGNABLE_ROLES = ["super_admin", "admin", "manager", "restaurant_owner", "employee", "customer", "driver", "other"] as const;
+type AssignableRole = typeof ASSIGNABLE_ROLES[number];
+
+/** Update any user's role (super_admin only) */
 router.patch("/backend/users/:id/role", requireAuth, async (req: AuthedRequest, res, next): Promise<void> => {
   if (!isSuperAdmin(req.userRole)) { res.status(403).json({ error: "Forbidden: super_admin requis" }); return; }
   try {
     const userId = parseInt(String(req.params.id), 10);
     if (isNaN(userId)) { res.status(400).json({ error: "Invalid id" }); return; }
-    const { role } = req.body;
+    const { role } = req.body ?? {};
     if (!role) { res.status(400).json({ error: "role requis" }); return; }
-    const [user] = await db.update(usersTable).set({ role }).where(eq(usersTable.id, userId))
+    if (!(ASSIGNABLE_ROLES as readonly string[]).includes(role)) {
+      res.status(400).json({ error: `Rôle invalide. Valeurs acceptées: ${ASSIGNABLE_ROLES.join(", ")}` }); return;
+    }
+    const [user] = await db.update(usersTable).set({ role: role as AssignableRole }).where(eq(usersTable.id, userId))
       .returning({ id: usersTable.id, name: usersTable.name, role: usersTable.role });
     if (!user) { res.status(404).json({ error: "Utilisateur introuvable" }); return; }
     res.json(user);
@@ -462,7 +471,8 @@ router.patch("/backend/users/:id", requireAuth, async (req: AuthedRequest, res, 
     if (isNaN(userId)) { res.status(400).json({ error: "Invalid id" }); return; }
     const allowed = ["name", "email", "phone", "address", "isActive", "avatarUrl", "loyaltyPoints", "walletBalance"];
     const updates: Record<string, unknown> = {};
-    for (const k of allowed) if (req.body[k] !== undefined) updates[k] = req.body[k];
+    const body = req.body ?? {};
+    for (const k of allowed) if (body[k] !== undefined) updates[k] = body[k];
     const [user] = await db.update(usersTable).set(updates as any).where(eq(usersTable.id, userId))
       .returning({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role });
     if (!user) { res.status(404).json({ error: "Utilisateur introuvable" }); return; }

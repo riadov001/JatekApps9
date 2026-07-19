@@ -94,6 +94,7 @@ export default function DeliverScreen() {
   const [pickupModalOrderId, setPickupModalOrderId] = useState<number | null>(null);
   const [confirmingPickup, setConfirmingPickup] = useState(false);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
+  const locationAbortRef = useRef<AbortController | null>(null);
 
   const isOnline = !!myDriver?.isAvailable;
   const profileComplete = !!(myDriver as any)?.profileCompletedAt;
@@ -161,7 +162,16 @@ export default function DeliverScreen() {
           distanceInterval: 8,
         },
         (loc) => {
-          updateDriverLocation(myDriver.id, loc.coords.latitude, loc.coords.longitude).catch(() => {});
+          // Cancel any previous in-flight request before sending a new one
+          // to prevent out-of-order location updates reaching the server.
+          locationAbortRef.current?.abort();
+          const abortCtrl = new AbortController();
+          locationAbortRef.current = abortCtrl;
+          updateDriverLocation(myDriver.id, loc.coords.latitude, loc.coords.longitude, abortCtrl.signal).catch((err) => {
+            if (err?.name !== "AbortError") {
+              console.warn("[deliver] location update failed:", err?.message ?? err);
+            }
+          });
         }
       );
       if (cancelled) sub.remove();
@@ -174,6 +184,9 @@ export default function DeliverScreen() {
         watchRef.current.remove();
         watchRef.current = null;
       }
+      // Cancel any pending location request when cleanup runs
+      locationAbortRef.current?.abort();
+      locationAbortRef.current = null;
     };
   }, [activeDelivery?.id, myDriver?.id]);
 
