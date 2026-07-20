@@ -195,7 +195,10 @@ function MenuSection({ restaurant, token, colors }: { restaurant: any; token: st
   const fetchItems = React.useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const res = await fetch(`${apiBase}/api/restaurants/${restaurant.id}/menu`);
+      const res = await fetch(
+        `${apiBase}/api/backend/products?shopId=${restaurant.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       const data = await res.json();
       setItems(Array.isArray(data) ? data : (data.items ?? []));
     } catch { /* noop */ } finally { setLoading(false); }
@@ -205,7 +208,7 @@ function MenuSection({ restaurant, token, colors }: { restaurant: any; token: st
 
   const toggleAvailable = async (item: MenuItem) => {
     try {
-      await fetch(`${apiBase}/api/menu/${item.id}`, {
+      await fetch(`${apiBase}/api/backend/products/${item.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ isAvailable: !item.isAvailable }),
@@ -226,7 +229,7 @@ function MenuSection({ restaurant, token, colors }: { restaurant: any; token: st
       { text: "Annuler", style: "cancel" },
       { text: "Supprimer", style: "destructive", onPress: async () => {
         try {
-          await fetch(`${apiBase}/api/menu/${item.id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+          await fetch(`${apiBase}/api/backend/products/${item.id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
           setItems(prev => prev.filter(i => i.id !== item.id));
         } catch { Alert.alert("Erreur", "Impossible de supprimer."); }
       }},
@@ -239,9 +242,9 @@ function MenuSection({ restaurant, token, colors }: { restaurant: any; token: st
     try {
       const payload = { name: form.name.trim(), description: form.description || undefined, price: Number(form.price), category: form.category, imageUrl: form.imageUrl || undefined, isAvailable: form.isAvailable, isPopular: form.isPopular };
       if (editingItem) {
-        await fetch(`${apiBase}/api/menu/${editingItem.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
+        await fetch(`${apiBase}/api/backend/products/${editingItem.id}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
       } else {
-        await fetch(`${apiBase}/api/restaurants/${restaurant.id}/menu`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
+        await fetch(`${apiBase}/api/backend/products`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...payload, restaurantId: restaurant.id }) });
       }
       setModalOpen(false);
       await fetchItems(true);

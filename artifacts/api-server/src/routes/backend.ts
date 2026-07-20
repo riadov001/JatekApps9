@@ -25,7 +25,7 @@ const router: IRouter = Router();
 const JWT_SECRET = process.env.SESSION_SECRET!; // validated at startup by auth middleware
 
 // ---------- Roles + permissions ----------
-type RoleKey = "super_admin" | "admin" | "manager" | "restaurant_owner" | "employee" | "customer" | "driver" | "other";
+type RoleKey = "super_admin" | "admin" | "manager" | "restaurant_owner" | "owner" | "employee" | "customer" | "driver" | "other";
 
 /**
  * All permission keys exposed to the dashboard. Super admins use this list when
@@ -130,7 +130,7 @@ const ROLE_DEFS: { key: RoleKey; label: string; description: string; permissions
   },
 ];
 
-const STAFF_ROLES: RoleKey[] = ["super_admin", "admin", "manager", "restaurant_owner", "employee", "other"];
+const STAFF_ROLES: RoleKey[] = ["super_admin", "admin", "manager", "restaurant_owner", "owner", "employee", "other"];
 
 function getPermissionsForRole(role: string): string[] {
   return ROLE_DEFS.find((r) => r.key === role)?.permissions ?? [];
@@ -161,7 +161,7 @@ function hasPermission(role: string, custom: { inheritedRoles?: string[]; grants
 
 /** Returns the list of shop IDs the user is scoped to, or null = no restriction. */
 async function getScopedShopIds(userId: number, role: string, assignedShopId: number | null): Promise<number[] | null> {
-  if (role === "restaurant_owner") {
+  if (role === "restaurant_owner" || role === "owner") {
     const rows = await db.select({ id: restaurantsTable.id }).from(restaurantsTable).where(eq(restaurantsTable.ownerId, userId));
     return rows.map((r) => r.id);
   }
@@ -616,7 +616,7 @@ router.patch("/backend/shops/:id", requireAuth, async (req: AuthedRequest, res, 
     }
     const adminAllowed = ["name", "description", "address", "phone", "category", "imageUrl", "logoUrl", "coverImageUrl", "deliveryTime", "deliveryFee", "minimumOrder", "isOpen", "ownerId", "isVerified", "businessType"];
     const ownerAllowed = ["name", "description", "address", "phone", "category", "imageUrl", "logoUrl", "coverImageUrl", "deliveryTime", "deliveryFee", "minimumOrder", "isOpen", "businessType"];
-    const allowed = ctx.role === "restaurant_owner" ? ownerAllowed : adminAllowed;
+    const allowed = (ctx.role === "restaurant_owner" || ctx.role === "owner") ? ownerAllowed : adminAllowed;
     const updates: Record<string, unknown> = {};
     for (const k of allowed) if ((req.body || {})[k] !== undefined) updates[k] = req.body[k];
     if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No valid fields to update" }); return; }
@@ -646,11 +646,11 @@ router.delete("/backend/shops/:id", requireAuth, async (req: AuthedRequest, res,
 router.get("/backend/staff", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const ctx = await requireBackendUser(req, res);
   if (!ctx) return;
-  if (!["super_admin", "admin", "restaurant_owner"].includes(ctx.role)) {
+  if (!["super_admin", "admin", "restaurant_owner", "owner"].includes(ctx.role)) {
     res.status(403).json({ error: "Forbidden" }); return;
   }
   let rows;
-  if (ctx.role === "restaurant_owner") {
+  if (ctx.role === "restaurant_owner" || ctx.role === "owner") {
     const myShops = await getScopedShopIds(ctx.id, ctx.role, ctx.assignedShopId);
     if (!myShops || myShops.length === 0) { res.json([]); return; }
     rows = await db.select().from(usersTable).where(and(eq(usersTable.role, "employee"), inArray(usersTable.assignedShopId, myShops)));
@@ -665,6 +665,7 @@ const ROLE_TRANSITIONS: Record<string, RoleKey[]> = {
   super_admin: ["super_admin", "admin", "manager", "restaurant_owner", "employee", "other"],
   admin: ["admin", "manager", "restaurant_owner", "employee"],
   restaurant_owner: ["employee"],
+  owner: ["employee"],
 };
 
 router.post("/backend/staff", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
@@ -677,7 +678,7 @@ router.post("/backend/staff", requireAuth, async (req: AuthedRequest, res): Prom
   if (!allowedRolesForActor.includes(role)) { res.status(403).json({ error: `Cannot create role '${role}'` }); return; }
 
   let finalShopId: number | null = assignedShopId ?? null;
-  if (ctx.role === "restaurant_owner") {
+  if (ctx.role === "restaurant_owner" || ctx.role === "owner") {
     // merchant: must assign to one of their own shops
     const ownedShops = await getScopedShopIds(ctx.id, ctx.role, ctx.assignedShopId) ?? [];
     if (!finalShopId || !ownedShops.includes(finalShopId)) {
@@ -705,7 +706,7 @@ router.patch("/backend/staff/:id", requireAuth, async (req: AuthedRequest, res):
   if (!allowedRolesForActor.includes(target.role as RoleKey) && target.role !== ctx.role) {
     res.status(403).json({ error: "Cannot modify this user" }); return;
   }
-  if (ctx.role === "restaurant_owner") {
+  if (ctx.role === "restaurant_owner" || ctx.role === "owner") {
     const ownedShops = await getScopedShopIds(ctx.id, ctx.role, ctx.assignedShopId) ?? [];
     if (target.role !== "employee" || !target.assignedShopId || !ownedShops.includes(target.assignedShopId)) {
       res.status(403).json({ error: "Cannot modify this user" }); return;
@@ -721,7 +722,7 @@ router.patch("/backend/staff/:id", requireAuth, async (req: AuthedRequest, res):
   if (updates.role && !allowedRolesForActor.includes(updates.role)) {
     res.status(403).json({ error: `Cannot assign role '${updates.role}'` }); return;
   }
-  if (ctx.role === "restaurant_owner") {
+  if (ctx.role === "restaurant_owner" || ctx.role === "owner") {
     if (updates.role && updates.role !== "employee") { res.status(403).json({ error: "Forbidden" }); return; }
     if ("assignedShopId" in updates) {
       const ownedShops = await getScopedShopIds(ctx.id, ctx.role, ctx.assignedShopId) ?? [];
