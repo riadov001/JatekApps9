@@ -955,31 +955,53 @@ router.delete("/backend/reviews/:id", requireAuth, async (req: AuthedRequest, re
 });
 
 // ---------- Categories ----------
+/**
+ * GET /backend/categories
+ * Returns a hierarchical tree: parent categories with nested subCategories[].
+ */
 router.get("/backend/categories", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const ctx = await requireBackendUser(req, res);
   if (!ctx) return;
 
-  // List from the real categoriesTable so empty categories can exist and be deleted
-  const cats = await db.select().from(categoriesTable).orderBy(categoriesTable.sortOrder, categoriesTable.name);
+  const all = await db.select().from(categoriesTable).orderBy(categoriesTable.sortOrder, categoriesTable.name);
 
-  // Count how many restaurants use each category name
+  // Count restaurant usage per category name
   const usageRows = await db
     .select({ name: restaurantsTable.category, cnt: count() })
     .from(restaurantsTable)
     .groupBy(restaurantsTable.category);
   const usageMap = new Map(usageRows.map((r) => [r.name, Number(r.cnt)]));
 
-  res.json(cats.map((cat) => ({
-    id: cat.id,
-    name: cat.name,
-    slug: cat.slug,
-    icon: cat.icon,
-    accentColor: cat.accentColor,
-    isActive: cat.isActive,
-    count: usageMap.get(cat.name) ?? 0,
-  })));
+  const toShape = (c: typeof all[number]) => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    icon: c.icon,
+    accentColor: c.accentColor,
+    isActive: c.isActive,
+    sortOrder: c.sortOrder,
+    parentId: (c as any).parentId ?? null,
+    count: usageMap.get(c.name) ?? 0,
+  });
+
+  // Build tree: parents first, then nest children
+  const parents = all.filter((c) => !(c as any).parentId);
+  const children = all.filter((c) => (c as any).parentId);
+
+  const tree = parents.map((p) => ({
+    ...toShape(p),
+    subCategories: children
+      .filter((ch) => (ch as any).parentId === p.id)
+      .map(toShape),
+  }));
+
+  res.json(tree);
 });
 
+/**
+ * POST /backend/categories
+ * Creates a parent or child category. Accepts: name, icon, accentColor, sortOrder, isActive, parentId.
+ */
 router.post("/backend/categories", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const ctx = await requireBackendUser(req, res);
   if (!ctx) return;
@@ -988,65 +1010,107 @@ router.post("/backend/categories", requireAuth, async (req: AuthedRequest, res):
   const name = String(req.body?.name || "").trim();
   const icon = String(req.body?.icon || "storefront").trim();
   const accentColor = String(req.body?.accentColor || "#E91E63").trim();
+  const sortOrder = Number(req.body?.sortOrder ?? 0);
+  const isActive = req.body?.isActive !== false;
+  const parentId = req.body?.parentId ? Number(req.body.parentId) : null;
 
   if (!name) { res.status(400).json({ error: "Name required" }); return; }
 
-  // Auto-generate slug from name
   const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
   try {
-    const [cat] = await db.insert(categoriesTable).values({ name, slug, icon, accentColor }).returning();
-    res.status(201).json({ id: cat.id, name: cat.name, slug: cat.slug, icon: cat.icon, accentColor: cat.accentColor, isActive: cat.isActive, count: 0 });
+    const [cat] = await db
+      .insert(categoriesTable)
+      .values({ name, slug, icon, accentColor, sortOrder, isActive, ...(parentId ? { parentId } : {}) } as any)
+      .returning();
+    res.status(201).json({
+      id: cat.id, name: cat.name, slug: cat.slug, icon: cat.icon,
+      accentColor: cat.accentColor, isActive: cat.isActive,
+      sortOrder: cat.sortOrder, parentId: (cat as any).parentId ?? null, count: 0,
+      subCategories: [],
+    });
   } catch (e: any) {
     if (e.code === "23505") { res.status(409).json({ error: "Une catégorie avec ce nom existe déjà" }); return; }
     throw e;
   }
 });
 
-router.patch("/backend/categories/:name", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+/**
+ * PATCH /backend/categories/:id — update by numeric ID.
+ * Also syncs restaurants.category when the name changes (for parent cats).
+ */
+router.patch("/backend/categories/:id", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const ctx = await requireBackendUser(req, res);
   if (!ctx) return;
   if (!["super_admin", "admin"].includes(ctx.role)) { res.status(403).json({ error: "Forbidden" }); return; }
 
-  const oldName = decodeURIComponent(String(req.params.name));
-  const newName = String(req.body?.name || "").trim();
-  if (!newName) { res.status(400).json({ error: "New name required" }); return; }
+  const id = parseInt(String(req.params.id), 10);
+  if (!id) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const newSlug = newName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  const [existing] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, id)).limit(1);
+  if (!existing) { res.status(404).json({ error: "Catégorie introuvable" }); return; }
 
-  // Check for slug conflict before updating
-  const slugConflict = await db.select({ id: categoriesTable.id }).from(categoriesTable).where(eq(categoriesTable.slug, newSlug)).limit(1);
-  if (slugConflict.length > 0) {
-    const [existing] = await db.select({ name: categoriesTable.name }).from(categoriesTable).where(eq(categoriesTable.slug, newSlug)).limit(1);
-    if (existing.name !== oldName) { res.status(409).json({ error: `Le slug "${newSlug}" est déjà utilisé par une autre catégorie` }); return; }
-  }
+  const name = String(req.body?.name || existing.name).trim();
+  const icon = String(req.body?.icon ?? existing.icon);
+  const accentColor = String(req.body?.accentColor ?? existing.accentColor);
+  const sortOrder = req.body?.sortOrder !== undefined ? Number(req.body.sortOrder) : existing.sortOrder;
+  const isActive = req.body?.isActive !== undefined ? Boolean(req.body.isActive) : existing.isActive;
+  const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
   try {
-    // Update categoriesTable entry AND all restaurants using this category name
-    await db.update(categoriesTable).set({ name: newName, slug: newSlug }).where(eq(categoriesTable.name, oldName));
-    await db.update(restaurantsTable).set({ category: newName }).where(eq(restaurantsTable.category, oldName));
-    res.json({ ok: true, renamed: oldName, to: newName });
+    const [updated] = await db
+      .update(categoriesTable)
+      .set({ name, slug, icon, accentColor, sortOrder, isActive } as any)
+      .where(eq(categoriesTable.id, id))
+      .returning();
+
+    // If the name changed, sync restaurants that used the old name
+    if (name !== existing.name) {
+      await db.update(restaurantsTable).set({ category: name }).where(eq(restaurantsTable.category, existing.name));
+    }
+
+    res.json({
+      id: updated.id, name: updated.name, slug: updated.slug, icon: updated.icon,
+      accentColor: updated.accentColor, isActive: updated.isActive,
+      sortOrder: updated.sortOrder, parentId: (updated as any).parentId ?? null,
+    });
   } catch (e: any) {
     if (e.code === "23505") { res.status(409).json({ error: "Ce nom de catégorie existe déjà" }); return; }
     throw e;
   }
 });
 
-router.delete("/backend/categories/:name", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+/**
+ * DELETE /backend/categories/:id — delete by numeric ID.
+ * Blocks if any restaurant uses the category or if it has child subcategories.
+ */
+router.delete("/backend/categories/:id", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const ctx = await requireBackendUser(req, res);
   if (!ctx) return;
   if (!["super_admin", "admin"].includes(ctx.role)) { res.status(403).json({ error: "Forbidden" }); return; }
 
-  const name = decodeURIComponent(String(req.params.name));
+  const id = parseInt(String(req.params.id), 10);
+  if (!id) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  // Check if any restaurant is using this category
-  const inUse = await db.select({ id: restaurantsTable.id }).from(restaurantsTable).where(eq(restaurantsTable.category, name));
+  const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, id)).limit(1);
+  if (!cat) { res.status(404).json({ error: "Catégorie introuvable" }); return; }
+
+  // Block if restaurants use this category
+  const inUse = await db.select({ id: restaurantsTable.id }).from(restaurantsTable).where(eq(restaurantsTable.category, cat.name));
   if (inUse.length > 0) {
     res.status(409).json({ error: `Cette catégorie est utilisée par ${inUse.length} restaurant(s). Réaffectez-les d'abord.` });
     return;
   }
 
-  await db.delete(categoriesTable).where(eq(categoriesTable.name, name));
+  // Block if it has subcategories (children must be deleted first)
+  const children = await db.select({ id: categoriesTable.id }).from(categoriesTable)
+    .where(eq((categoriesTable as any).parentId, id));
+  if (children.length > 0) {
+    res.status(409).json({ error: `Cette catégorie a ${children.length} sous-catégorie(s). Supprimez-les d'abord.` });
+    return;
+  }
+
+  await db.delete(categoriesTable).where(eq(categoriesTable.id, id));
   res.status(204).end();
 });
 
@@ -1300,6 +1364,9 @@ router.post("/backend/orders/:id/assign-driver", requireAuth, async (req: Authed
 router.get("/backend/drivers", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const ctx = await requireBackendUser(req, res);
   if (!ctx) return;
+  if (!["super_admin", "admin", "manager"].includes(ctx.role)) {
+    res.status(403).json({ error: "Forbidden: admin/manager only" }); return;
+  }
   try {
     const drivers = await db.select().from(driversTable);
     res.json(drivers);
