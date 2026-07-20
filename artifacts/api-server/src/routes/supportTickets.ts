@@ -7,7 +7,7 @@ const router: IRouter = Router();
 
 // List tickets — admins see all (with author name/email), others see their own.
 router.get("/support-tickets", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
-  if (req.userRole === "admin") {
+  if (["admin", "super_admin", "manager"].includes(req.userRole ?? "")) {
     const rows = await db
       .select({
         id: supportTicketsTable.id,
@@ -51,7 +51,7 @@ router.post("/support-tickets", requireAuth, async (req: AuthedRequest, res): Pr
 
 // Admin-only: update status of a ticket
 router.patch("/support-tickets/:id", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
-  if (req.userRole !== "admin") {
+  if (!["admin", "super_admin", "manager"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "Admin only" });
     return;
   }
@@ -80,7 +80,7 @@ router.patch("/support-tickets/:id", requireAuth, async (req: AuthedRequest, res
 
 // Admin-only: delete a ticket
 router.delete("/support-tickets/:id", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
-  if (req.userRole !== "admin") {
+  if (!["admin", "super_admin"].includes(req.userRole ?? "")) {
     res.status(403).json({ error: "Admin only" });
     return;
   }

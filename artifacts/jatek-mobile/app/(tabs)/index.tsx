@@ -20,6 +20,7 @@ import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import {
   useListRestaurants,
   useGetFeaturedRestaurants,
+  useListCategories,
   type Restaurant,
   type ListRestaurantsParams,
 } from "@workspace/api-client-react";
@@ -273,6 +274,20 @@ export default function HomeScreen() {
 
   const { data: restaurants, isLoading } = useListRestaurants(params);
   const { data: featuredPartners } = useGetFeaturedRestaurants();
+  const { data: apiCategories } = useListCategories();
+
+  // Categories managed from the admin dashboard — fall back to the static list
+  // while loading or if the API returns nothing.
+  const shopCategories = useMemo(() => {
+    const parents = (apiCategories ?? []).filter((c: any) => !c.parentId && c.isActive !== false);
+    if (parents.length === 0) return SHOP_CATEGORIES;
+    return parents.map((c: any) => ({
+      slug: c.slug,
+      label: c.name,
+      icon: (c.icon || "storefront") as any,
+      accent: c.accentColor || PINK,
+    }));
+  }, [apiCategories]);
   const shorts = useMemo(
     () => (restaurants ?? []).filter((r) => r.imageUrl || r.coverImageUrl).slice(0, 8),
     [restaurants],
@@ -390,7 +405,7 @@ export default function HomeScreen() {
           style={s.shopCatsScroll}
           contentContainerStyle={s.shopCatsContent}
         >
-          {SHOP_CATEGORIES.map((c) => (
+          {shopCategories.map((c) => (
             <Pressable
               key={c.slug}
               onPress={() => router.push({ pathname: "/category/[slug]", params: { slug: c.slug } })}

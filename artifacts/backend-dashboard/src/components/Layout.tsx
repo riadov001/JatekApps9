@@ -24,6 +24,7 @@ import {
   Server,
   Radio,
   AppWindow,
+  LifeBuoy,
 } from "lucide-react";
 import { useBackendMe } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
@@ -100,6 +101,7 @@ const navGroups: NavGroup[] = [
     label: "Finance",
     items: [
       { href: "/wallets", label: "Portefeuilles", icon: Wallet, roles: ADMIN_ROLES },
+      { href: "/support", label: "Support", icon: LifeBuoy, roles: ADMIN_ROLES },
       { href: "/reports", label: "Rapports", icon: BarChart3 },
     ],
   },

@@ -31,6 +31,7 @@ import AuditPage from "@/pages/audit";
 import Monitoring from "@/pages/monitoring";
 import LiveTracking from "@/pages/live-tracking";
 import AppConfig from "@/pages/app-config";
+import Support from "@/pages/support";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +83,7 @@ function Router() {
               <AdminRoute path="/live-tracking" component={LiveTracking} />
               <AdminRoute path="/settings" component={SettingsPage} />
               <AdminRoute path="/app-config" component={AppConfig} />
+              <AdminRoute path="/support" component={Support} />
 
               <Route component={NotFound} />
             </Switch>

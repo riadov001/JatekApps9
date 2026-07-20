@@ -16,7 +16,7 @@ import { useLocalSearchParams, router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
-import { useListRestaurants, useGetFeaturedRestaurants, type Restaurant } from "@workspace/api-client-react";
+import { useListRestaurants, useGetFeaturedRestaurants, useListCategories, type Restaurant } from "@workspace/api-client-react";
 import { getApiBaseSafe } from "@/lib/apiBase";
 
 function trackBannerClick(restaurantId: number) {
@@ -277,13 +277,46 @@ export default function CategoryScreen() {
   const [search, setSearch] = useState("");
   const [activeSubId, setActiveSubId] = useState("all");
 
-  const config = SLUG_CONFIG[slug ?? ""] ?? {
+  // Reset subcategory selection when navigating between categories.
+  React.useEffect(() => {
+    setActiveSubId("all");
+  }, [slug]);
+
+  const staticConfig = SLUG_CONFIG[slug ?? ""] ?? {
     label: slug ?? "Catégorie",
     color: PINK,
     bannerImage: null,
     businessType: "restaurant",
     subcategories: [{ id: "all", label: "Tout", icon: "grid" }],
   };
+
+  // Categories managed from the admin dashboard — override static config when available.
+  const { data: apiCategories } = useListCategories();
+  const config = useMemo(() => {
+    const parent = (apiCategories ?? []).find((c: any) => c.slug === slug && !c.parentId);
+    if (!parent) return staticConfig;
+    const children = (apiCategories ?? []).filter(
+      (c: any) => c.parentId === parent.id && c.isActive !== false,
+    );
+    return {
+      ...staticConfig,
+      label: parent.name || staticConfig.label,
+      color: parent.accentColor || staticConfig.color,
+      businessType: (parent as any).businessType || staticConfig.businessType,
+      subcategories:
+        children.length > 0
+          ? [
+              { id: "all", label: "Tout", icon: "grid" },
+              ...children.map((c: any) => ({
+                id: String(c.id),
+                label: c.name,
+                icon: c.icon || "grid",
+                apiCategory: c.name,
+              })),
+            ]
+          : staticConfig.subcategories,
+    };
+  }, [apiCategories, slug, staticConfig]);
 
   const activeSub = config.subcategories.find((s) => s.id === activeSubId) ?? config.subcategories[0];
   const apiCategory = activeSub.id === "all" ? undefined : activeSub.apiCategory;
