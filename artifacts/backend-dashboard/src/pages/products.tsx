@@ -338,7 +338,7 @@ function ProductMenuCategories() {
               <Label className="text-xs">Restaurant (vide = global)</Label>
               <Select value={newCat.restaurantId || "global"} onValueChange={(v) => setNewCat({ ...newCat, restaurantId: v === "global" ? "" : v })}>
                 <SelectTrigger><SelectValue placeholder="Global" /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[200]">
                   <SelectItem value="global">— Global —</SelectItem>
                   {(shops as any[] | undefined)?.map((s: any) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
                 </SelectContent>
@@ -410,7 +410,7 @@ function ProductFields({ form, setForm, restaurantId }: { form: any; setForm: an
           {productCats && productCats.length > 0 ? (
             <Select value={form.category} onValueChange={(v) => set("category", v)} required>
               <SelectTrigger><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[200]">
                 {productCats.map((c) => (
                   <SelectItem key={c.id} value={c.name}>
                     {c.name}{c.restaurantId !== null ? " ★" : ""}
@@ -862,7 +862,7 @@ function ImportProductsDialog({
             <Label className="text-xs">Boutique cible *</Label>
             <Select value={shopId || "none"} onValueChange={(v) => setShopId(v === "none" ? "" : v)}>
               <SelectTrigger><SelectValue placeholder="Choisir une boutique" /></SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[200]">
                 <SelectItem value="none">— Choisir —</SelectItem>
                 {visibleShops.map((s) => (
                   <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>

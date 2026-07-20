@@ -458,7 +458,7 @@ function ShopForm({
             }}
           >
             <SelectTrigger><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[200]">
               <SelectItem value="__none__">— Aucune —</SelectItem>
               {cats.map((c) => (
                 <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
@@ -481,7 +481,7 @@ function ShopForm({
                     : "Choisir…"
               } />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[200]">
               <SelectItem value="__none__">— Aucune —</SelectItem>
               {subcats.map((s) => (
                 <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
