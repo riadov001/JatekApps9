@@ -540,7 +540,7 @@ router.patch("/orders/:id/status", requireAuth, async (req: AuthedRequest, res, 
       res.status(409).json({ error: "Order must be picked_up before transitioning to en_route" });
       return;
     }
-    if (req.userRole !== "admin") {
+    if (!["admin", "super_admin", "manager"].includes(req.userRole ?? "")) {
       if (!existing.driverId) { res.status(403).json({ error: "Order has no assigned driver" }); return; }
       const [drv] = await db.select().from(driversTable).where(eq(driversTable.id, existing.driverId)).limit(1);
       if (!drv || drv.userId !== req.userId) {
@@ -564,13 +564,16 @@ router.patch("/orders/:id/status", requireAuth, async (req: AuthedRequest, res, 
     const [restaurant] = await db.select().from(restaurantsTable).where(eq(restaurantsTable.id, existing.restaurantId)).limit(1);
     if (!restaurant) { res.status(404).json({ error: "Restaurant not found" }); return; }
 
-    // Authorization: only the restaurant owner (or admin) may accept.
-    if (req.userRole !== "admin" && restaurant.ownerId !== req.userId) {
+    // Authorization: only the restaurant owner, admin, super_admin or manager may accept.
+    const isStaff = ["admin", "super_admin", "manager"].includes(req.userRole ?? "");
+    if (!isStaff && restaurant.ownerId !== req.userId) {
       res.status(403).json({ error: "Not authorized to accept orders for this restaurant" });
       return;
     }
 
-    if (!restaurant.profileCompletedAt) {
+    // Staff (admin/super_admin/manager) can accept even if profile is incomplete
+    const isStaffAccept = ["admin", "super_admin", "manager"].includes(req.userRole ?? "");
+    if (!isStaffAccept && !restaurant.profileCompletedAt) {
       res.status(412).json({
         error: "Complete your business profile (legal name + ICE) before accepting orders.",
         code: "OWNER_PROFILE_INCOMPLETE",

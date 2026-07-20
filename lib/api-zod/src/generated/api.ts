@@ -304,9 +304,28 @@ export const VerifyOtpResponse = zod.object({
  * JWT required. Backend dashboard RBAC applies by staff role and scoped shop access.
  * @summary List shop/restaurant categories (distinct values from shops)
  */
-export const ListBackendCategoriesResponseItem = zod.object({
+export const ListBackendCategoriesSubItem = zod.object({
+  id: zod.number(),
   name: zod.string(),
+  slug: zod.string(),
+  icon: zod.string(),
+  accentColor: zod.string(),
+  isActive: zod.boolean(),
+  sortOrder: zod.number(),
+  parentId: zod.number().nullable(),
   count: zod.number(),
+});
+export const ListBackendCategoriesResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  slug: zod.string(),
+  icon: zod.string(),
+  accentColor: zod.string(),
+  isActive: zod.boolean(),
+  sortOrder: zod.number(),
+  parentId: zod.number().nullable(),
+  count: zod.number(),
+  subCategories: zod.array(ListBackendCategoriesSubItem),
 });
 export const ListBackendCategoriesResponse = zod.array(
   ListBackendCategoriesResponseItem,

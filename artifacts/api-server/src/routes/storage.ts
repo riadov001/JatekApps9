@@ -30,7 +30,7 @@ const ALLOWED_IMAGE_TYPES = new Set([
  */
 router.post(
   "/storage/uploads/request-url",
-  requireRole("admin", "restaurant_owner"),
+  requireRole("admin", "super_admin", "manager", "restaurant_owner"),
   async (req: AuthedRequest, res: Response) => {
     const parsed = RequestUploadUrlBody.safeParse(req.body);
     if (!parsed.success) {
