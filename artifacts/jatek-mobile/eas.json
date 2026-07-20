@@ -16,6 +16,7 @@
     "preview": {
       "distribution": "internal",
       "autoIncrement": true,
+      "channel": "preview",
       "credentialsSource": "local",
       "env": {
         "EXPO_PUBLIC_DOMAIN": "ma.jatek.app",
@@ -25,6 +26,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
       "env": {
         "EXPO_PUBLIC_DOMAIN": "ma.jatek.app",
         "EXPO_PUBLIC_API_URL": "https://ma.jatek.app",

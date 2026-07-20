@@ -74,13 +74,36 @@ Jatek is a full-stack food delivery application serving Oujda, Morocco, connecti
 
 _Populate as you build_
 
+## Mobile App Builds (EAS)
+
+### Preview APK (Android — installable by testers)
+```bash
+bash scripts/eas-build.sh mobile preview android
+bash scripts/eas-build.sh driver preview android
+```
+
+### Production AAB (Android — for Play Store)
+```bash
+bash scripts/eas-build.sh mobile production android
+bash scripts/eas-build.sh driver production android
+```
+
+### OTA JS Update (no rebuild needed)
+```bash
+bash scripts/eas-update.sh mobile production "Describe what changed"
+bash scripts/eas-update.sh driver production "Describe what changed"
+```
+
+Both apps point to `https://ma.jatek.app` in `preview` and `production` profiles.
+EAS projectId for customer app: `2437ecfc-9682-4b07-9eaa-77f6206b4714`
+EAS projectId for driver app:   `135003c2-4828-403d-8176-068364215286`
+
 ## Gotchas
 
 - Always run `pnpm --filter @workspace/db run push` after schema changes in development.
 - For iOS builds, initial interactive credential setup is required via `eas credentials`.
 - Mobile build buttons are intentionally absent; use `bash scripts/eas-build.sh` for EAS builds.
 - Demo/test data is never seeded in production; only core accounts are ensured.
-- The `jatek-driver` EAS project ID is initially a placeholder and will be auto-populated on the first build.
 
 ## Pointers
 
