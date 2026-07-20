@@ -37,6 +37,8 @@ export const restaurantsTable = pgTable("restaurants", {
   longitude: doublePrecision("longitude"),
   /** Whether this restaurant is pinned in the "featured" home carousel. */
   isFeatured: boolean("is_featured").notNull().default(false),
+  /** FK to categoriesTable — the subcategory (parentId != null) this shop belongs to. */
+  subcategoryId: integer("subcategory_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

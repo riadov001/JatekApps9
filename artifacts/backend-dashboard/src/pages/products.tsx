@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   useListBackendProducts,
   useListBackendShops,
@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Plus, Pencil, Trash2, Loader2, Settings2, Tags, Package } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, Loader2, Settings2, Tags, Package, FileUp, Download, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -54,6 +55,8 @@ export default function Products() {
   const [editing, setEditing] = useState<any | null>(null);
   const [editForm, setEditForm] = useState(EMPTY);
   const [optionsProduct, setOptionsProduct] = useState<any | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importShopId, setImportShopId] = useState("");
 
   const invalidate = () => qc.invalidateQueries({ queryKey: getListBackendProductsQueryKey() });
 
@@ -75,16 +78,24 @@ export default function Products() {
     onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
   });
 
+  const buildProductPayload = (f: typeof EMPTY) => ({
+    name: f.name,
+    description: f.description || undefined,
+    price: Number(f.price),
+    category: f.category,
+    imageUrl: f.imageUrl || undefined,
+    isAvailable: f.isAvailable,
+    isPopular: f.isPopular,
+    allergens: f.allergens || undefined,
+    tags: f.tags || undefined,
+    prepTimeMinutes: f.prepTimeMinutes ? Number(f.prepTimeMinutes) : undefined,
+    calories: f.calories ? Number(f.calories) : undefined,
+  });
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!shopId) { toast({ title: "Choisissez une boutique", variant: "destructive" }); return; }
-    createMutation.mutate({
-      restaurantId: Number(shopId),
-      name: form.name, description: form.description || undefined,
-      price: Number(form.price), category: form.category,
-      imageUrl: form.imageUrl || undefined,
-      isAvailable: form.isAvailable, isPopular: form.isPopular,
-    });
+    createMutation.mutate({ restaurantId: Number(shopId), ...buildProductPayload(form) });
   };
 
   const openEdit = (p: any) => {
@@ -93,19 +104,17 @@ export default function Products() {
       name: p.name, description: p.description ?? "", price: String(p.price),
       category: p.category, imageUrl: p.imageUrl ?? "",
       isAvailable: p.isAvailable, isPopular: p.isPopular,
-      allergens: p.allergens ?? "", tags: "", prepTimeMinutes: "", calories: "",
+      allergens: p.allergens ?? "",
+      tags: Array.isArray(p.tags) ? p.tags.join(",") : (p.tags ?? ""),
+      prepTimeMinutes: p.prepTimeMinutes ? String(p.prepTimeMinutes) : "",
+      calories: p.calories ? String(p.calories) : "",
     });
   };
 
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editing) return;
-    updateMutation.mutate({ id: editing.id, data: {
-      name: editForm.name, description: editForm.description || undefined,
-      price: Number(editForm.price), category: editForm.category,
-      imageUrl: editForm.imageUrl || undefined,
-      isAvailable: editForm.isAvailable, isPopular: editForm.isPopular,
-    }});
+    updateMutation.mutate({ id: editing.id, data: buildProductPayload(editForm) });
   };
 
   const handleToggle = (p: any, isAvailable: boolean) => {
@@ -119,8 +128,11 @@ export default function Products() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Produits</h1>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Produits</h1>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportOpen(true)}>
+          <FileUp className="h-4 w-4" /> Importer CSV/JSON
+        </Button>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild><Button className="gap-2"><Plus className="h-4 w-4" /> Nouveau produit</Button></DialogTrigger>
           <DialogContent className="sm:max-w-lg">
@@ -216,6 +228,13 @@ export default function Products() {
       </Dialog>
 
       <OptionsDialogWrapper product={optionsProduct} onClose={() => setOptionsProduct(null)} />
+      <ImportProductsDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        shops={visibleShops}
+        isOwner={isOwner}
+        scopedShopIds={scopedShopIds}
+      />
     </div>
   );
 }
@@ -365,14 +384,29 @@ function ProductMenuCategories() {
   );
 }
 
+const DIET_TAGS = [
+  { value: "halal", label: "Halal" },
+  { value: "vegetarian", label: "Végétarien" },
+  { value: "vegan", label: "Vegan" },
+  { value: "spicy", label: "Épicé" },
+  { value: "gluten_free", label: "Sans gluten" },
+];
+
 function ProductFields({ form, setForm, restaurantId }: { form: any; setForm: any; restaurantId?: string | number }) {
   const set = (k: string, v: any) => setForm({ ...form, [k]: v });
   const { data: productCats } = useProductCategories(restaurantId);
+  const selectedTags: string[] = form.tags ? form.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [];
+  const toggleTag = (tag: string) => {
+    const next = selectedTags.includes(tag)
+      ? selectedTags.filter((t) => t !== tag)
+      : [...selectedTags, tag];
+    set("tags", next.join(","));
+  };
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field label="Nom"><Input required value={form.name} onChange={(e: any) => set("name", e.target.value)} /></Field>
-        <Field label="Catégorie">
+        <Field label="Nom *"><Input required value={form.name} onChange={(e: any) => set("name", e.target.value)} /></Field>
+        <Field label="Catégorie *">
           {productCats && productCats.length > 0 ? (
             <Select value={form.category} onValueChange={(v) => set("category", v)} required>
               <SelectTrigger><SelectValue placeholder="Choisir une catégorie" /></SelectTrigger>
@@ -388,13 +422,43 @@ function ProductFields({ form, setForm, restaurantId }: { form: any; setForm: an
             <Input required value={form.category} onChange={(e: any) => set("category", e.target.value)} placeholder="Catégorie" />
           )}
         </Field>
-        <Field label="Prix (DH)"><Input required type="number" step="0.01" value={form.price} onChange={(e: any) => set("price", e.target.value)} /></Field>
+        <Field label="Prix (DH) *"><Input required type="number" step="0.01" value={form.price} onChange={(e: any) => set("price", e.target.value)} /></Field>
         <Field label="Image (URL)"><Input value={form.imageUrl} onChange={(e: any) => set("imageUrl", e.target.value)} /></Field>
       </div>
       <Field label="Description"><Textarea rows={2} value={form.description} onChange={(e: any) => set("description", e.target.value)} /></Field>
-      <div className="flex items-center gap-6 pt-2">
-        <label className="flex items-center gap-2 text-sm"><Switch checked={form.isAvailable} onCheckedChange={(v: any) => set("isAvailable", v)} /> Disponible</label>
-        <label className="flex items-center gap-2 text-sm"><Switch checked={form.isPopular} onCheckedChange={(v: any) => set("isPopular", v)} /> Populaire</label>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Field label="Allergènes">
+          <Input value={form.allergens} onChange={(e: any) => set("allergens", e.target.value)} placeholder="gluten, lactose, noix…" />
+        </Field>
+        <Field label="Préparation (min)">
+          <Input type="number" min="0" value={form.prepTimeMinutes} onChange={(e: any) => set("prepTimeMinutes", e.target.value)} placeholder="15" />
+        </Field>
+        <Field label="Calories (kcal)">
+          <Input type="number" min="0" value={form.calories} onChange={(e: any) => set("calories", e.target.value)} placeholder="850" />
+        </Field>
+      </div>
+      <div>
+        <Label className="text-xs">Tags diététiques</Label>
+        <div className="flex flex-wrap gap-2 mt-1.5">
+          {DIET_TAGS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => toggleTag(value)}
+              className={`rounded-full px-3 py-1 text-xs border transition-colors ${
+                selectedTags.includes(value)
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border text-muted-foreground hover:border-primary"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-6 pt-1">
+        <label className="flex items-center gap-2 text-sm cursor-pointer"><Switch checked={form.isAvailable} onCheckedChange={(v: any) => set("isAvailable", v)} /> Disponible</label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer"><Switch checked={form.isPopular} onCheckedChange={(v: any) => set("isPopular", v)} /> Populaire</label>
       </div>
     </>
   );
@@ -537,33 +601,53 @@ function OptionsDialog({ product, onClose }: { product: any | null; onClose: () 
             <TabsTrigger value="extras">Suppléments</TabsTrigger>
           </TabsList>
           <TabsContent value="sizes" className="space-y-4 pt-2">
-            <div className="grid grid-cols-12 gap-2 items-end border-b pb-3">
-              <div className="col-span-4"><Field label="Nom"><Input value={sizeForm.name} onChange={(e) => setSizeForm({ ...sizeForm, name: e.target.value })} placeholder="Large" /></Field></div>
-              <div className="col-span-3"><Field label="Ajustement prix"><Input type="number" value={sizeForm.priceAdjustment} onChange={(e) => setSizeForm({ ...sizeForm, priceAdjustment: e.target.value })} /></Field></div>
-              <div className="col-span-2"><Field label="Ordre"><Input type="number" value={sizeForm.sortOrder} onChange={(e) => setSizeForm({ ...sizeForm, sortOrder: e.target.value })} /></Field></div>
-              <div className="col-span-2"><label className="flex items-center gap-2 text-sm"><Switch checked={sizeForm.isAvailable} onCheckedChange={(v) => setSizeForm({ ...sizeForm, isAvailable: v })} /> Actif</label></div>
-              <div className="col-span-1"><Button size="icon" onClick={createSize} disabled={!sizeForm.name}><Plus className="h-4 w-4" /></Button></div>
+            {/* Add size form — responsive flex */}
+            <div className="flex flex-col sm:flex-row gap-2 items-end border-b pb-4">
+              <div className="flex-1 min-w-0 space-y-1">
+                <Label className="text-xs">Nom</Label>
+                <Input value={sizeForm.name} onChange={(e) => setSizeForm({ ...sizeForm, name: e.target.value })} placeholder="Large, XL…" />
+              </div>
+              <div className="w-full sm:w-28 space-y-1">
+                <Label className="text-xs">Ajust. prix</Label>
+                <Input type="number" value={sizeForm.priceAdjustment} onChange={(e) => setSizeForm({ ...sizeForm, priceAdjustment: e.target.value })} />
+              </div>
+              <div className="w-full sm:w-20 space-y-1">
+                <Label className="text-xs">Ordre</Label>
+                <Input type="number" value={sizeForm.sortOrder} onChange={(e) => setSizeForm({ ...sizeForm, sortOrder: e.target.value })} />
+              </div>
+              <div className="flex items-center gap-2 sm:pb-0.5">
+                <Switch checked={sizeForm.isAvailable} onCheckedChange={(v) => setSizeForm({ ...sizeForm, isAvailable: v })} />
+                <span className="text-xs">Actif</span>
+              </div>
+              <Button size="icon" onClick={createSize} disabled={!sizeForm.name} className="shrink-0 sm:self-end">
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
-            {sizesLoading ? <Skeleton className="h-20 w-full" /> : sizes?.length === 0 ? <p className="text-sm text-muted-foreground">Aucune taille.</p> : (
+            {sizesLoading ? <Skeleton className="h-20 w-full" /> : sizes?.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucune taille. Ajoutez-en une ci-dessus.</p>
+            ) : (
               <div className="space-y-2">
                 {sizes?.map((s) => editingSize?.id === s.id ? (
-                  <div key={s.id} className="grid grid-cols-12 gap-2 items-end bg-muted/40 p-2 rounded-md">
-                    <div className="col-span-4"><Input value={editingSize.name} onChange={(e) => setEditingSize({ ...editingSize, name: e.target.value })} /></div>
-                    <div className="col-span-3"><Input type="number" value={editingSize.priceAdjustment} onChange={(e) => setEditingSize({ ...editingSize, priceAdjustment: Number(e.target.value) })} /></div>
-                    <div className="col-span-2"><Input type="number" value={editingSize.sortOrder} onChange={(e) => setEditingSize({ ...editingSize, sortOrder: Number(e.target.value) })} /></div>
-                    <div className="col-span-2"><Switch checked={editingSize.isAvailable} onCheckedChange={(v) => setEditingSize({ ...editingSize, isAvailable: v })} /></div>
-                    <div className="col-span-1 flex gap-1"><Button size="icon" variant="ghost" onClick={updateSize}><Pencil className="h-4 w-4" /></Button><Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteSize(s.id)}><Trash2 className="h-4 w-4" /></Button></div>
+                  <div key={s.id} className="flex flex-col sm:flex-row gap-2 items-end bg-muted/40 p-2 rounded-md">
+                    <Input className="flex-1" value={editingSize.name} onChange={(e) => setEditingSize({ ...editingSize, name: e.target.value })} />
+                    <Input className="w-full sm:w-28" type="number" value={editingSize.priceAdjustment} onChange={(e) => setEditingSize({ ...editingSize, priceAdjustment: Number(e.target.value) })} />
+                    <Input className="w-full sm:w-20" type="number" value={editingSize.sortOrder} onChange={(e) => setEditingSize({ ...editingSize, sortOrder: Number(e.target.value) })} />
+                    <Switch checked={editingSize.isAvailable} onCheckedChange={(v) => setEditingSize({ ...editingSize, isAvailable: v })} />
+                    <div className="flex gap-1 shrink-0">
+                      <Button size="icon" variant="ghost" onClick={updateSize}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteSize(s.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
                   </div>
                 ) : (
-                  <div key={s.id} className="flex items-center justify-between p-2 border rounded-md">
-                    <div className="flex items-center gap-3">
-                      <span className="font-medium">{s.name}</span>
-                      <span className="text-sm text-muted-foreground">{s.priceAdjustment > 0 ? `+${s.priceAdjustment}` : s.priceAdjustment} MAD</span>
-                      <Badge variant={s.isAvailable ? "default" : "secondary"}>{s.isAvailable ? "Actif" : "Inactif"}</Badge>
+                  <div key={s.id} className="flex items-center justify-between p-2.5 border rounded-md gap-2">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
+                      <span className="font-medium truncate">{s.name}</span>
+                      <span className="text-sm text-muted-foreground shrink-0">{s.priceAdjustment > 0 ? `+${s.priceAdjustment}` : s.priceAdjustment} MAD</span>
+                      <Badge variant={s.isAvailable ? "default" : "secondary"} className="shrink-0">{s.isAvailable ? "Actif" : "Inactif"}</Badge>
                     </div>
-                    <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => setEditingSize(s)}><Pencil className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteSize(s.id)}><Trash2 className="h-4 w-4" /></Button>
+                    <div className="flex gap-1 shrink-0">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingSize(s)}><Pencil className="h-3.5 w-3.5" /></Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => deleteSize(s.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                     </div>
                   </div>
                 ))}
@@ -571,33 +655,53 @@ function OptionsDialog({ product, onClose }: { product: any | null; onClose: () 
             )}
           </TabsContent>
           <TabsContent value="extras" className="space-y-4 pt-2">
-            <div className="grid grid-cols-12 gap-2 items-end border-b pb-3">
-              <div className="col-span-4"><Field label="Nom"><Input value={extraForm.name} onChange={(e) => setExtraForm({ ...extraForm, name: e.target.value })} placeholder="Fromage extra" /></Field></div>
-              <div className="col-span-3"><Field label="Prix"><Input type="number" value={extraForm.price} onChange={(e) => setExtraForm({ ...extraForm, price: e.target.value })} /></Field></div>
-              <div className="col-span-2"><Field label="Ordre"><Input type="number" value={extraForm.sortOrder} onChange={(e) => setExtraForm({ ...extraForm, sortOrder: e.target.value })} /></Field></div>
-              <div className="col-span-2"><label className="flex items-center gap-2 text-sm"><Switch checked={extraForm.isAvailable} onCheckedChange={(v) => setExtraForm({ ...extraForm, isAvailable: v })} /> Actif</label></div>
-              <div className="col-span-1"><Button size="icon" onClick={createExtra} disabled={!extraForm.name}><Plus className="h-4 w-4" /></Button></div>
+            {/* Add extra form — responsive flex */}
+            <div className="flex flex-col sm:flex-row gap-2 items-end border-b pb-4">
+              <div className="flex-1 min-w-0 space-y-1">
+                <Label className="text-xs">Nom</Label>
+                <Input value={extraForm.name} onChange={(e) => setExtraForm({ ...extraForm, name: e.target.value })} placeholder="Fromage extra…" />
+              </div>
+              <div className="w-full sm:w-28 space-y-1">
+                <Label className="text-xs">Prix (DH)</Label>
+                <Input type="number" value={extraForm.price} onChange={(e) => setExtraForm({ ...extraForm, price: e.target.value })} />
+              </div>
+              <div className="w-full sm:w-20 space-y-1">
+                <Label className="text-xs">Ordre</Label>
+                <Input type="number" value={extraForm.sortOrder} onChange={(e) => setExtraForm({ ...extraForm, sortOrder: e.target.value })} />
+              </div>
+              <div className="flex items-center gap-2 sm:pb-0.5">
+                <Switch checked={extraForm.isAvailable} onCheckedChange={(v) => setExtraForm({ ...extraForm, isAvailable: v })} />
+                <span className="text-xs">Actif</span>
+              </div>
+              <Button size="icon" onClick={createExtra} disabled={!extraForm.name} className="shrink-0 sm:self-end">
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
-            {extrasLoading ? <Skeleton className="h-20 w-full" /> : extras?.length === 0 ? <p className="text-sm text-muted-foreground">Aucun supplément.</p> : (
+            {extrasLoading ? <Skeleton className="h-20 w-full" /> : extras?.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucun supplément. Ajoutez-en un ci-dessus.</p>
+            ) : (
               <div className="space-y-2">
                 {extras?.map((x) => editingExtra?.id === x.id ? (
-                  <div key={x.id} className="grid grid-cols-12 gap-2 items-end bg-muted/40 p-2 rounded-md">
-                    <div className="col-span-4"><Input value={editingExtra.name} onChange={(e) => setEditingExtra({ ...editingExtra, name: e.target.value })} /></div>
-                    <div className="col-span-3"><Input type="number" value={editingExtra.price} onChange={(e) => setEditingExtra({ ...editingExtra, price: Number(e.target.value) })} /></div>
-                    <div className="col-span-2"><Input type="number" value={editingExtra.sortOrder} onChange={(e) => setEditingExtra({ ...editingExtra, sortOrder: Number(e.target.value) })} /></div>
-                    <div className="col-span-2"><Switch checked={editingExtra.isAvailable} onCheckedChange={(v) => setEditingExtra({ ...editingExtra, isAvailable: v })} /></div>
-                    <div className="col-span-1 flex gap-1"><Button size="icon" variant="ghost" onClick={updateExtra}><Pencil className="h-4 w-4" /></Button><Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteExtra(x.id)}><Trash2 className="h-4 w-4" /></Button></div>
+                  <div key={x.id} className="flex flex-col sm:flex-row gap-2 items-end bg-muted/40 p-2 rounded-md">
+                    <Input className="flex-1" value={editingExtra.name} onChange={(e) => setEditingExtra({ ...editingExtra, name: e.target.value })} />
+                    <Input className="w-full sm:w-28" type="number" value={editingExtra.price} onChange={(e) => setEditingExtra({ ...editingExtra, price: Number(e.target.value) })} />
+                    <Input className="w-full sm:w-20" type="number" value={editingExtra.sortOrder} onChange={(e) => setEditingExtra({ ...editingExtra, sortOrder: Number(e.target.value) })} />
+                    <Switch checked={editingExtra.isAvailable} onCheckedChange={(v) => setEditingExtra({ ...editingExtra, isAvailable: v })} />
+                    <div className="flex gap-1 shrink-0">
+                      <Button size="icon" variant="ghost" onClick={updateExtra}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteExtra(x.id)}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
                   </div>
                 ) : (
-                  <div key={x.id} className="flex items-center justify-between p-2 border rounded-md">
-                    <div className="flex items-center gap-3">
-                      <span className="font-medium">{x.name}</span>
-                      <span className="text-sm text-muted-foreground">{x.price > 0 ? `+${x.price}` : x.price === 0 ? "Inclus" : x.price} MAD</span>
-                      <Badge variant={x.isAvailable ? "default" : "secondary"}>{x.isAvailable ? "Actif" : "Inactif"}</Badge>
+                  <div key={x.id} className="flex items-center justify-between p-2.5 border rounded-md gap-2">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
+                      <span className="font-medium truncate">{x.name}</span>
+                      <span className="text-sm text-muted-foreground shrink-0">{x.price > 0 ? `+${x.price}` : x.price === 0 ? "Inclus" : x.price} MAD</span>
+                      <Badge variant={x.isAvailable ? "default" : "secondary"} className="shrink-0">{x.isAvailable ? "Actif" : "Inactif"}</Badge>
                     </div>
-                    <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => setEditingExtra(x)}><Pencil className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteExtra(x.id)}><Trash2 className="h-4 w-4" /></Button>
+                    <div className="flex gap-1 shrink-0">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingExtra(x)}><Pencil className="h-3.5 w-3.5" /></Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => deleteExtra(x.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                     </div>
                   </div>
                 ))}
@@ -612,4 +716,230 @@ function OptionsDialog({ product, onClose }: { product: any | null; onClose: () 
 
 function OptionsDialogWrapper({ product, onClose }: { product: any | null; onClose: () => void }) {
   return product ? <OptionsDialog product={product} onClose={onClose} /> : null;
+}
+
+// ─── CSV/JSON Import Dialog ──────────────────────────────────────────────────
+
+const CSV_TEMPLATE_HEADERS = "name,description,price,category,imageUrl,isAvailable,isPopular,allergens,prepTimeMinutes,calories,tags";
+const CSV_EXAMPLE = `Pizza Margherita,"Tomate et mozzarella",49.90,Pizza,,true,false,"gluten,lactose",15,850,
+Salade César,"Fraîche et légère",35.00,Salade,,true,true,,10,320,vegetarian`;
+
+function parseCSV(text: string): Record<string, string>[] {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+  return lines.slice(1).filter((l) => l.trim()).map((line) => {
+    const values: string[] = [];
+    let cur = "";
+    let inQuote = false;
+    for (const ch of line) {
+      if (ch === '"') { inQuote = !inQuote; }
+      else if (ch === "," && !inQuote) { values.push(cur.trim()); cur = ""; }
+      else { cur += ch; }
+    }
+    values.push(cur.trim());
+    return Object.fromEntries(headers.map((h, i) => [h, (values[i] ?? "").replace(/^"|"$/g, "")]));
+  });
+}
+
+function ImportProductsDialog({
+  open, onClose, shops, isOwner, scopedShopIds,
+}: {
+  open: boolean; onClose: () => void;
+  shops: any[]; isOwner: boolean; scopedShopIds: number[];
+}) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [shopId, setShopId] = useState("");
+  const [rows, setRows] = useState<Record<string, string>[]>([]);
+  const [parseError, setParseError] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+
+  const visibleShops = isOwner
+    ? shops.filter((s) => scopedShopIds.includes(s.id))
+    : shops;
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      try {
+        if (file.name.endsWith(".json")) {
+          const parsed = JSON.parse(text);
+          if (!Array.isArray(parsed)) { setParseError("Le JSON doit être un tableau d'objets."); return; }
+          setRows(parsed.map((r) => ({ ...r })));
+          setParseError("");
+        } else {
+          const parsed = parseCSV(text);
+          if (!parsed.length) { setParseError("Fichier vide ou format invalide."); return; }
+          setRows(parsed);
+          setParseError("");
+        }
+      } catch (err: any) {
+        setParseError(`Erreur de parsing: ${err?.message}`);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImport = async () => {
+    if (!shopId) { toast({ title: "Choisissez une boutique", variant: "destructive" }); return; }
+    if (!rows.length) { toast({ title: "Aucun produit à importer", variant: "destructive" }); return; }
+    setImporting(true);
+    setProgress({ done: 0, total: rows.length });
+    let successes = 0;
+    let errors = 0;
+    for (const row of rows) {
+      try {
+        const price = parseFloat(row.price);
+        if (!row.name || isNaN(price)) { errors++; setProgress((p) => ({ ...p, done: p.done + 1 })); continue; }
+        await apiFetch("/api/backend/products", {
+          method: "POST",
+          body: JSON.stringify({
+            restaurantId: Number(shopId),
+            name: row.name.trim(),
+            description: row.description || undefined,
+            price,
+            category: row.category || "Général",
+            imageUrl: row.imageUrl || undefined,
+            isAvailable: row.isAvailable !== "false",
+            isPopular: row.isPopular === "true",
+            allergens: row.allergens || undefined,
+            prepTimeMinutes: row.prepTimeMinutes ? Number(row.prepTimeMinutes) : undefined,
+            calories: row.calories ? Number(row.calories) : undefined,
+            tags: row.tags || undefined,
+          }),
+        });
+        successes++;
+      } catch { errors++; }
+      setProgress((p) => ({ ...p, done: p.done + 1 }));
+    }
+    qc.invalidateQueries({ queryKey: getListBackendProductsQueryKey() });
+    setImporting(false);
+    toast({ title: `Import terminé: ${successes} créés, ${errors} erreurs` });
+    if (successes > 0) { setRows([]); onClose(); }
+  };
+
+  const downloadTemplate = () => {
+    const blob = new Blob([CSV_TEMPLATE_HEADERS + "\n" + CSV_EXAMPLE], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "produits_template.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o && !importing) { onClose(); setRows([]); setParseError(""); } }}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileUp className="h-5 w-5" /> Importer des produits
+          </DialogTitle>
+          <DialogDescription>
+            Téléversez un fichier CSV ou JSON pour créer plusieurs produits en une fois.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-5 pt-2">
+          {/* Template download */}
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between flex-wrap gap-2">
+              <span>Colonnes requises: <strong>name</strong>, <strong>price</strong>, <strong>category</strong></span>
+              <Button variant="outline" size="sm" className="gap-2 h-7" onClick={downloadTemplate}>
+                <Download className="h-3.5 w-3.5" /> Télécharger le modèle CSV
+              </Button>
+            </AlertDescription>
+          </Alert>
+
+          {/* Shop select */}
+          <div className="space-y-1">
+            <Label className="text-xs">Boutique cible *</Label>
+            <Select value={shopId || "none"} onValueChange={(v) => setShopId(v === "none" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="Choisir une boutique" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— Choisir —</SelectItem>
+                {visibleShops.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* File input */}
+          <div className="space-y-2">
+            <Label className="text-xs">Fichier CSV ou JSON</Label>
+            <div className="flex gap-2">
+              <Button variant="outline" className="gap-2" onClick={() => fileRef.current?.click()}>
+                <FileUp className="h-4 w-4" />
+                {rows.length > 0 ? `${rows.length} ligne(s) chargée(s)` : "Choisir un fichier"}
+              </Button>
+              {rows.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => setRows([])}>Effacer</Button>
+              )}
+            </div>
+            <input ref={fileRef} type="file" accept=".csv,.json" className="hidden" onChange={handleFile} />
+            {parseError && <p className="text-xs text-destructive">{parseError}</p>}
+          </div>
+
+          {/* Preview table */}
+          {rows.length > 0 && (
+            <div className="border rounded-md overflow-x-auto max-h-60">
+              <table className="text-xs w-full">
+                <thead className="bg-muted/60 sticky top-0">
+                  <tr>
+                    {Object.keys(rows[0]).slice(0, 6).map((h) => (
+                      <th key={h} className="px-2 py-1.5 text-left font-medium">{h}</th>
+                    ))}
+                    {Object.keys(rows[0]).length > 6 && <th className="px-2 py-1.5 text-left font-medium">…</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.slice(0, 20).map((row, i) => (
+                    <tr key={i} className="border-t hover:bg-muted/30">
+                      {Object.values(row).slice(0, 6).map((v, j) => (
+                        <td key={j} className="px-2 py-1 max-w-[140px] truncate">{String(v)}</td>
+                      ))}
+                      {Object.keys(row).length > 6 && <td className="px-2 py-1 text-muted-foreground">…</td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {rows.length > 20 && (
+                <p className="text-xs text-muted-foreground text-center py-1.5 border-t">
+                  + {rows.length - 20} lignes non affichées
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Progress */}
+          {importing && (
+            <div className="text-sm text-muted-foreground flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Import en cours: {progress.done}/{progress.total}
+            </div>
+          )}
+        </div>
+        <DialogFooter className="pt-4">
+          <Button variant="outline" onClick={() => { onClose(); setRows([]); setParseError(""); }} disabled={importing}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleImport}
+            disabled={importing || !shopId || !rows.length}
+            className="gap-2"
+          >
+            {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
+            Importer {rows.length > 0 ? `(${rows.length})` : ""}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }

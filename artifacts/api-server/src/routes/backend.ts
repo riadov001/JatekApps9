@@ -586,7 +586,7 @@ router.post("/backend/shops", requireAuth, async (req: AuthedRequest, res, next)
   if (!ctx) return;
   if (!["super_admin", "admin"].includes(ctx.role)) { res.status(403).json({ error: "Forbidden" }); return; }
   try {
-    const { name, description, address, phone, category, imageUrl, logoUrl, coverImageUrl, deliveryTime, deliveryFee, minimumOrder, ownerId, isOpen, businessType } = req.body || {};
+    const { name, description, address, phone, category, imageUrl, logoUrl, coverImageUrl, deliveryTime, deliveryFee, minimumOrder, ownerId, isOpen, businessType, subcategoryId, isFeatured } = req.body || {};
     if (!name || !address) { res.status(400).json({ error: "name et address requis" }); return; }
     const [shop] = await db.insert(restaurantsTable).values({
       name, description: description ?? null, address,
@@ -598,6 +598,8 @@ router.post("/backend/shops", requireAuth, async (req: AuthedRequest, res, next)
       ownerId: ownerId ? Number(ownerId) : (ctx.id),
       isOpen: isOpen ?? true,
       businessType: businessType ?? "restaurant",
+      subcategoryId: subcategoryId ? Number(subcategoryId) : null,
+      isFeatured: isFeatured ?? false,
     }).returning();
     res.status(201).json(shop);
   } catch (err) { next(err); }
@@ -614,8 +616,8 @@ router.patch("/backend/shops/:id", requireAuth, async (req: AuthedRequest, res, 
     if (scoped !== null && !scoped.includes(id)) {
       res.status(403).json({ error: "Forbidden: not your restaurant" }); return;
     }
-    const adminAllowed = ["name", "description", "address", "phone", "category", "imageUrl", "logoUrl", "coverImageUrl", "deliveryTime", "deliveryFee", "minimumOrder", "isOpen", "ownerId", "isVerified", "businessType"];
-    const ownerAllowed = ["name", "description", "address", "phone", "category", "imageUrl", "logoUrl", "coverImageUrl", "deliveryTime", "deliveryFee", "minimumOrder", "isOpen", "businessType"];
+    const adminAllowed = ["name", "description", "address", "phone", "category", "imageUrl", "logoUrl", "coverImageUrl", "deliveryTime", "deliveryFee", "minimumOrder", "isOpen", "ownerId", "isVerified", "businessType", "subcategoryId", "isFeatured"];
+    const ownerAllowed = ["name", "description", "address", "phone", "category", "imageUrl", "logoUrl", "coverImageUrl", "deliveryTime", "deliveryFee", "minimumOrder", "isOpen", "businessType", "subcategoryId"];
     const allowed = (ctx.role === "restaurant_owner" || ctx.role === "owner") ? ownerAllowed : adminAllowed;
     const updates: Record<string, unknown> = {};
     for (const k of allowed) if ((req.body || {})[k] !== undefined) updates[k] = req.body[k];
@@ -1249,6 +1251,60 @@ router.put("/backend/settings", requireAuth, async (req: AuthedRequest, res): Pr
     }
   } catch (err: any) {
     res.status(500).json({ error: err?.message ?? "Failed to save settings" });
+  }
+});
+
+// ---------- Driver Management (admin) ----------
+
+/**
+ * POST /api/backend/orders/:id/assign-driver
+ * Admin manually assigns an available driver to an order.
+ */
+router.post("/backend/orders/:id/assign-driver", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+  if (!["super_admin", "admin", "manager"].includes(ctx.role)) {
+    res.status(403).json({ error: "Forbidden: admin only" }); return;
+  }
+  const orderId = parseInt(String(req.params.id), 10);
+  const { driverId } = req.body ?? {};
+  if (!orderId || !driverId) {
+    res.status(400).json({ error: "orderId et driverId requis" }); return;
+  }
+  try {
+    const [driver] = await db.select().from(driversTable).where(eq(driversTable.id, Number(driverId))).limit(1);
+    if (!driver) { res.status(404).json({ error: "Livreur introuvable" }); return; }
+
+    const [order] = await db
+      .update(ordersTable)
+      .set({ driverId: driver.id, driverName: driver.name })
+      .where(eq(ordersTable.id, orderId))
+      .returning();
+
+    if (!order) { res.status(404).json({ error: "Commande introuvable" }); return; }
+
+    // Notify driver via SSE
+    publish(`driver_orders:${driver.id}`, { type: "order_assigned", orderId });
+
+    res.json(order);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Erreur serveur" });
+  }
+});
+
+/**
+ * GET /api/backend/drivers
+ * List all drivers with basic info (admin only).
+ * Proxies to /api/drivers with enriched data.
+ */
+router.get("/backend/drivers", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const ctx = await requireBackendUser(req, res);
+  if (!ctx) return;
+  try {
+    const drivers = await db.select().from(driversTable);
+    res.json(drivers);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message });
   }
 });
 

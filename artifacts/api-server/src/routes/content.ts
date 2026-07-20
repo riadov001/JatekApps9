@@ -128,7 +128,16 @@ router.patch("/backend/categories/:id", requireAuth, async (req: AuthedRequest, 
 
 router.delete("/backend/categories/:id", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   if (!await requireAdmin(req, res)) return;
-  await db.delete(categoriesTable).where(eq(categoriesTable.id, Number(req.params.id)));
+  const id = Number(req.params.id);
+
+  // Guard: prevent deleting a parent category that still has subcategories
+  const children = await db.select({ id: categoriesTable.id }).from(categoriesTable).where(eq(categoriesTable.parentId, id)).limit(1);
+  if (children.length > 0) {
+    res.status(409).json({ error: "Impossible de supprimer : cette catégorie a des sous-catégories. Supprimez-les d'abord." });
+    return;
+  }
+
+  await db.delete(categoriesTable).where(eq(categoriesTable.id, id));
   res.status(204).end();
 });
 

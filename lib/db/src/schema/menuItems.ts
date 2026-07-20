@@ -20,6 +20,8 @@ export const menuItemsTable = pgTable("menu_items", {
   prepTimeMinutes: integer("prep_time_minutes"),
   /** Calories (kcal) */
   calories: integer("calories"),
+  /** FK to menuItemCategoriesTable — optional structured product category. */
+  menuItemCategoryId: integer("menu_item_category_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

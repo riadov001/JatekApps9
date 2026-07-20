@@ -2037,6 +2037,8 @@ export const CreateRestaurantBody = zod.object({
   deliveryTime: zod.number().optional(),
   deliveryFee: zod.number().optional(),
   minimumOrder: zod.number().optional(),
+  subcategoryId: zod.number().nullish(),
+  isFeatured: zod.boolean().optional(),
 });
 
 /**
@@ -2102,6 +2104,8 @@ export const UpdateRestaurantBody = zod.object({
   minimumOrder: zod.number().optional(),
   isVerified: zod.boolean().optional(),
   ownerId: zod.number().optional(),
+  subcategoryId: zod.number().nullish(),
+  isFeatured: zod.boolean().optional(),
 });
 
 export const UpdateRestaurantResponse = zod.object({

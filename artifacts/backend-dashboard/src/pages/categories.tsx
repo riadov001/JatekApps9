@@ -9,227 +9,389 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tags, Pencil, Trash2, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import {
+  ChevronRight, Plus, Pencil, Trash2, Loader2, FolderTree,
+} from "lucide-react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api";
 
-type ShopCategory = {
-  id: number;
-  name: string;
-  slug: string;
-  icon: string;
-  accentColor: string;
-  isActive: boolean;
-  count: number;
+type SubCat = {
+  id: number; name: string; slug: string; icon: string;
+  accentColor: string; isActive: boolean; sortOrder: number; parentId: number | null;
 };
+type Cat = SubCat & { subCategories: SubCat[] };
+
+const EMPTY = { name: "", icon: "storefront", accentColor: "#E91E63", sortOrder: "0", isActive: true };
+
+function CategoryForm({
+  value, onChange,
+}: {
+  value: typeof EMPTY;
+  onChange: (v: typeof EMPTY) => void;
+}) {
+  const set = (k: keyof typeof EMPTY) => (e: any) =>
+    onChange({ ...value, [k]: e.target?.value ?? e });
+  return (
+    <div className="space-y-4 pt-2">
+      <div className="space-y-1">
+        <Label className="text-xs">Nom *</Label>
+        <Input value={value.name} onChange={set("name")} placeholder="Ex: Pizza, Burger…" required autoFocus />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Icône (Material name)</Label>
+          <Input value={value.icon} onChange={set("icon")} placeholder="storefront" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Ordre d'affichage</Label>
+          <Input type="number" value={value.sortOrder} onChange={set("sortOrder")} />
+        </div>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Couleur d'accent</Label>
+        <div className="flex items-center gap-2">
+          <input
+            type="color" value={value.accentColor}
+            onChange={(e) => onChange({ ...value, accentColor: e.target.value })}
+            className="h-9 w-12 rounded border cursor-pointer flex-shrink-0"
+          />
+          <Input value={value.accentColor} onChange={set("accentColor")} placeholder="#E91E63" className="flex-1" />
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={value.isActive}
+          onCheckedChange={(v) => onChange({ ...value, isActive: v })}
+          id="cat-active"
+        />
+        <Label htmlFor="cat-active" className="text-sm cursor-pointer">Active (visible dans l'app)</Label>
+      </div>
+    </div>
+  );
+}
 
 export default function Categories() {
   const { data: categories, isLoading } = useListBackendCategories();
   const qc = useQueryClient();
   const { toast } = useToast();
 
-  const [creating, setCreating] = useState(false);
-  const [newCatName, setNewCatName] = useState("");
-  const [newCatIcon, setNewCatIcon] = useState("storefront");
-  const [newCatColor, setNewCatColor] = useState("#E91E63");
-  const [newCatOrder, setNewCatOrder] = useState("0");
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [createParent, setCreateParent] = useState(false);
+  const [createSubFor, setCreateSubFor] = useState<Cat | null>(null);
+  const [editing, setEditing] = useState<(SubCat & { _form?: typeof EMPTY }) | null>(null);
+  const [deleting, setDeleting] = useState<(SubCat & { isParent: boolean; childCount: number }) | null>(null);
+  const [createForm, setCreateForm] = useState(EMPTY);
+  const [editForm, setEditForm] = useState(EMPTY);
 
-  const [renaming, setRenaming] = useState<ShopCategory | null>(null);
-  const [newName, setNewName] = useState("");
-  const [deleting, setDeleting] = useState<ShopCategory | null>(null);
+  const cats = (categories ?? []) as Cat[];
+  const invalidate = () => qc.invalidateQueries({ queryKey: getListBackendCategoriesQueryKey() });
 
-  const invalidate = () =>
-    qc.invalidateQueries({ queryKey: getListBackendCategoriesQueryKey() });
+  const toggle = (id: number) =>
+    setExpanded((prev) => {
+      const s = new Set(prev);
+      if (s.has(id)) s.delete(id); else s.add(id);
+      return s;
+    });
 
   const createMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (parentId?: number | null) =>
       apiFetch("/api/backend/categories", {
         method: "POST",
         body: JSON.stringify({
-          name: newCatName.trim(),
-          icon: newCatIcon.trim(),
-          accentColor: newCatColor,
-          sortOrder: Number(newCatOrder) || 0,
+          name: createForm.name.trim(),
+          slug: createForm.name.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
+          icon: createForm.icon.trim() || "storefront",
+          accentColor: createForm.accentColor,
+          sortOrder: Number(createForm.sortOrder) || 0,
+          isActive: createForm.isActive,
+          parentId: parentId ?? null,
         }),
       }),
     onSuccess: () => {
       invalidate();
-      setCreating(false);
-      setNewCatName(""); setNewCatIcon("storefront"); setNewCatColor("#E91E63"); setNewCatOrder("0");
+      setCreateParent(false);
+      setCreateSubFor(null);
+      setCreateForm(EMPTY);
       toast({ title: "Catégorie créée" });
     },
     onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
   });
 
-  const renameMutation = useMutation({
-    mutationFn: (vars: { oldName: string; newName: string }) =>
-      apiFetch(`/api/backend/categories/${encodeURIComponent(vars.oldName)}`, {
+  const updateMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiFetch(`/api/backend/categories/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ name: vars.newName }),
+        body: JSON.stringify({
+          name: editForm.name.trim(),
+          icon: editForm.icon.trim(),
+          accentColor: editForm.accentColor,
+          sortOrder: Number(editForm.sortOrder) || 0,
+          isActive: editForm.isActive,
+        }),
       }),
-    onSuccess: () => { invalidate(); setRenaming(null); toast({ title: "Catégorie renommée" }); },
+    onSuccess: () => { invalidate(); setEditing(null); toast({ title: "Catégorie modifiée" }); },
     onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (name: string) =>
-      apiFetch(`/api/backend/categories/${encodeURIComponent(name)}`, { method: "DELETE" }),
+    mutationFn: (id: number) =>
+      apiFetch(`/api/backend/categories/${id}`, { method: "DELETE" }),
     onSuccess: () => { invalidate(); setDeleting(null); toast({ title: "Catégorie supprimée" }); },
     onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
   });
 
+  const openCreate = (parent?: Cat) => {
+    setCreateForm(EMPTY);
+    if (parent) { setCreateSubFor(parent); if (!expanded.has(parent.id)) toggle(parent.id); }
+    else setCreateParent(true);
+  };
+
+  const openEdit = (cat: SubCat) => {
+    setEditForm({
+      name: cat.name,
+      icon: cat.icon,
+      accentColor: cat.accentColor,
+      sortOrder: String(cat.sortOrder),
+      isActive: cat.isActive,
+    });
+    setEditing(cat);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <h1 className="text-3xl font-bold tracking-tight">Catégories</h1>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Catégories</h1>
+        <Button size="sm" className="gap-2" onClick={() => openCreate()}>
+          <Plus className="h-4 w-4" /> Nouvelle catégorie
+        </Button>
+      </div>
 
-      <Card className="max-w-3xl">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="flex items-center space-x-2">
-            <Tags className="h-5 w-5 text-primary" />
-            <span>Catégories de boutiques</span>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FolderTree className="h-5 w-5 text-primary" />
+            Arborescence boutiques
           </CardTitle>
-          <Button size="sm" onClick={() => setCreating(true)} className="gap-2">
-            <Plus className="h-4 w-4" /> Nouvelle
-          </Button>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Slug</TableHead>
-                <TableHead>Icône</TableHead>
-                <TableHead>Ordre</TableHead>
-                <TableHead className="text-right">Boutiques</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading
-                ? Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                      <TableCell className="text-right"><Skeleton className="h-4 w-8 ml-auto" /></TableCell>
-                      <TableCell className="text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
-                    </TableRow>
-                  ))
-                : (categories as ShopCategory[] | undefined)?.length === 0
-                  ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                        Aucune catégorie.
-                      </TableCell>
-                    </TableRow>
-                  )
-                  : (categories as ShopCategory[] | undefined)?.map((cat) => (
-                    <TableRow key={cat.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="h-4 w-4 rounded-full border"
-                            style={{ backgroundColor: cat.accentColor }}
-                          />
-                          {cat.name}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{cat.slug}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{cat.icon}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{(cat as any).sortOrder ?? 0}</TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="secondary">{cat.count} boutique{cat.count !== 1 ? "s" : ""}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost" size="icon"
-                            onClick={() => { setRenaming(cat); setNewName(cat.name); }}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost" size="icon"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleting(cat)}
-                            disabled={cat.count > 0}
-                            title={cat.count > 0 ? "Réaffectez les boutiques d'abord" : "Supprimer"}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-            </TableBody>
-          </Table>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8 pl-4" />
+                  <TableHead>Nom</TableHead>
+                  <TableHead className="hidden sm:table-cell">Icône / Couleur</TableHead>
+                  <TableHead className="hidden md:table-cell">Sous-catégories</TableHead>
+                  <TableHead className="text-right pr-4">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading
+                  ? Array.from({ length: 4 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                        <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+                        <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-16" /></TableCell>
+                        <TableCell><Skeleton className="h-8 w-28 ml-auto" /></TableCell>
+                      </TableRow>
+                    ))
+                  : cats.length === 0
+                    ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="h-28 text-center text-muted-foreground">
+                            Aucune catégorie. Créez votre première catégorie parente.
+                          </TableCell>
+                        </TableRow>
+                      )
+                    : cats.flatMap((cat) => [
+                        // ─── Parent row ──────────────────────────────────
+                        <TableRow key={`p-${cat.id}`} className="bg-muted/30 hover:bg-muted/50 font-medium">
+                          <TableCell className="pl-4 w-8">
+                            <button
+                              onClick={() => toggle(cat.id)}
+                              className={`transition-transform duration-200 inline-flex ${
+                                expanded.has(cat.id) ? "rotate-90" : ""
+                              } ${cat.subCategories.length === 0 ? "opacity-20 cursor-default" : "cursor-pointer hover:text-primary"}`}
+                              aria-label={expanded.has(cat.id) ? "Réduire" : "Développer"}
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2.5">
+                              <div
+                                className="h-4 w-4 rounded-full ring-2 ring-white shadow-sm flex-shrink-0"
+                                style={{ backgroundColor: cat.accentColor }}
+                              />
+                              <span className="truncate max-w-[180px] sm:max-w-none">{cat.name}</span>
+                              {!cat.isActive && (
+                                <Badge variant="secondary" className="text-xs">Inactif</Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell text-muted-foreground text-xs">
+                            {cat.icon}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            <Badge variant="outline">
+                              {cat.subCategories.length} sous-cat.
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right pr-4">
+                            <div className="flex items-center justify-end gap-1 flex-wrap">
+                              <Button
+                                variant="outline" size="sm" className="h-7 gap-1 text-xs hidden sm:flex"
+                                onClick={() => openCreate(cat)}
+                              >
+                                <Plus className="h-3 w-3" />
+                                Sous-cat.
+                              </Button>
+                              <Button
+                                variant="ghost" size="icon" className="h-8 w-8 sm:hidden"
+                                onClick={() => openCreate(cat)} title="Ajouter sous-catégorie"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost" size="icon" className="h-8 w-8"
+                                onClick={() => openEdit(cat)}
+                                title="Modifier"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost" size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() =>
+                                  setDeleting({ ...cat, isParent: true, childCount: cat.subCategories.length })
+                                }
+                                disabled={cat.subCategories.length > 0}
+                                title={
+                                  cat.subCategories.length > 0
+                                    ? "Supprimez d'abord les sous-catégories"
+                                    : "Supprimer"
+                                }
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>,
+
+                        // ─── Subcategory rows ─────────────────────────────
+                        ...(expanded.has(cat.id)
+                          ? cat.subCategories.length === 0
+                            ? [
+                                <TableRow key={`empty-${cat.id}`}>
+                                  <TableCell />
+                                  <TableCell
+                                    colSpan={4}
+                                    className="pl-10 text-sm text-muted-foreground py-3 italic"
+                                  >
+                                    Aucune sous-catégorie. Cliquez «Sous-cat.» pour en ajouter.
+                                  </TableCell>
+                                </TableRow>,
+                              ]
+                            : cat.subCategories.map((sub) => (
+                                <TableRow key={`s-${sub.id}`} className="hover:bg-muted/20">
+                                  <TableCell />
+                                  <TableCell className="pl-10">
+                                    <div className="flex items-center gap-2">
+                                      <div
+                                        className="h-3 w-3 rounded-full flex-shrink-0"
+                                        style={{ backgroundColor: sub.accentColor }}
+                                      />
+                                      <span className="text-sm truncate max-w-[160px] sm:max-w-none">
+                                        {sub.name}
+                                      </span>
+                                      {!sub.isActive && (
+                                        <Badge variant="secondary" className="text-xs">Inactif</Badge>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="hidden sm:table-cell text-muted-foreground text-xs">
+                                    {sub.icon}
+                                  </TableCell>
+                                  <TableCell className="hidden md:table-cell">
+                                    <Badge variant="secondary" className="text-xs">sous-catégorie</Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right pr-4">
+                                    <div className="flex items-center justify-end gap-1">
+                                      <Button
+                                        variant="ghost" size="icon" className="h-8 w-8"
+                                        onClick={() => openEdit(sub)}
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost" size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        onClick={() =>
+                                          setDeleting({ ...sub, isParent: false, childCount: 0 })
+                                        }
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                          : []),
+                      ])}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Create dialog */}
-      <Dialog open={creating} onOpenChange={(o) => !o && setCreating(false)}>
-        <DialogContent>
+      {/* ─── Create dialog ───────────────────────────────────────── */}
+      <Dialog
+        open={createParent || !!createSubFor}
+        onOpenChange={(o) => {
+          if (!o) { setCreateParent(false); setCreateSubFor(null); }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Nouvelle catégorie</DialogTitle>
-            <DialogDescription>Catégorie de boutiques visible dans l'application.</DialogDescription>
+            <DialogTitle>
+              {createSubFor
+                ? `Nouvelle sous-catégorie de «${createSubFor.name}»`
+                : "Nouvelle catégorie parente"}
+            </DialogTitle>
+            <DialogDescription>
+              {createSubFor
+                ? "Ex: Pizza, Burger, Sushi… visible lors du choix d'un shop."
+                : "Ex: Restaurant, Pharmacie, Épicerie…"}
+            </DialogDescription>
           </DialogHeader>
           <form
-            onSubmit={(e) => { e.preventDefault(); if (newCatName.trim()) createMutation.mutate(); }}
-            className="space-y-4 pt-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (createForm.name.trim()) createMutation.mutate(createSubFor?.id);
+            }}
           >
-            <div className="space-y-1">
-              <Label className="text-xs">Nom *</Label>
-              <Input
-                value={newCatName}
-                onChange={(e) => setNewCatName(e.target.value)}
-                placeholder="Ex: Restauration, Épicerie…"
-                required
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Icône (Material icon name)</Label>
-              <Input
-                value={newCatIcon}
-                onChange={(e) => setNewCatIcon(e.target.value)}
-                placeholder="storefront"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Ordre d'affichage</Label>
-              <Input
-                type="number"
-                value={newCatOrder}
-                onChange={(e) => setNewCatOrder(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Couleur d'accent</Label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={newCatColor}
-                  onChange={(e) => setNewCatColor(e.target.value)}
-                  className="h-9 w-12 rounded border cursor-pointer"
-                />
-                <Input
-                  value={newCatColor}
-                  onChange={(e) => setNewCatColor(e.target.value)}
-                  placeholder="#E91E63"
-                  className="flex-1"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setCreating(false)}>Annuler</Button>
-              <Button type="submit" disabled={createMutation.isPending || !newCatName.trim()}>
+            <CategoryForm value={createForm} onChange={setCreateForm} />
+            <DialogFooter className="mt-6">
+              <Button
+                type="button" variant="outline"
+                onClick={() => { setCreateParent(false); setCreateSubFor(null); }}
+              >
+                Annuler
+              </Button>
+              <Button type="submit" disabled={createMutation.isPending || !createForm.name.trim()}>
                 {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 Créer
               </Button>
@@ -238,54 +400,54 @@ export default function Categories() {
         </DialogContent>
       </Dialog>
 
-      {/* Rename dialog */}
-      <Dialog open={!!renaming} onOpenChange={(o) => !o && setRenaming(null)}>
-        <DialogContent>
+      {/* ─── Edit dialog ─────────────────────────────────────────── */}
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Renommer «{renaming?.name}»</DialogTitle>
-            <DialogDescription>Appliqué à toutes les boutiques de cette catégorie.</DialogDescription>
+            <DialogTitle>Modifier «{editing?.name}»</DialogTitle>
           </DialogHeader>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (renaming && newName.trim()) renameMutation.mutate({ oldName: renaming.name, newName: newName.trim() });
-            }}
-            className="space-y-4 pt-2"
-          >
-            <div className="space-y-1">
-              <Label className="text-xs">Nouveau nom</Label>
-              <Input value={newName} onChange={(e) => setNewName(e.target.value)} required />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setRenaming(null)}>Annuler</Button>
-              <Button
-                type="submit"
-                disabled={renameMutation.isPending || !newName.trim() || newName.trim() === renaming?.name}
-              >
-                {renameMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Renommer
-              </Button>
-            </DialogFooter>
-          </form>
+          {editing && (
+            <form
+              onSubmit={(e) => { e.preventDefault(); updateMutation.mutate(editing.id); }}
+            >
+              <CategoryForm value={editForm} onChange={setEditForm} />
+              <DialogFooter className="mt-6">
+                <Button type="button" variant="outline" onClick={() => setEditing(null)}>
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={updateMutation.isPending || !editForm.name.trim()}>
+                  {updateMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Enregistrer
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirm */}
+      {/* ─── Delete confirm ───────────────────────────────────────── */}
       <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer «{deleting?.name}» ?</AlertDialogTitle>
-            <AlertDialogDescription>Suppression définitive. La catégorie ne contient aucune boutique.</AlertDialogDescription>
+            <AlertDialogDescription>
+              {deleting?.isParent && (deleting.childCount ?? 0) > 0
+                ? `Cette catégorie a ${deleting.childCount} sous-catégorie(s). Supprimez-les d'abord.`
+                : "Suppression définitive. Cette action est irréversible."}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => deleting && deleteMutation.mutate(deleting.name)}
-              disabled={deleteMutation.isPending}
+              onClick={() => deleting && deleteMutation.mutate(deleting.id)}
+              disabled={
+                deleteMutation.isPending ||
+                (deleting?.isParent && (deleting.childCount ?? 0) > 0)
+              }
             >
               {deleteMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Supprimer
+              Supprimer définitivement
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
