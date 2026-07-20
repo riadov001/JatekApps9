@@ -654,8 +654,10 @@ router.get("/auth/otp-diagnostic", async (_req, res): Promise<void> => {
   // ── Infobip ─────────────────────────────────────────────────────────────────
   results.infobip = {
     configured: !!(process.env.INFOBIP_API_KEY && (process.env.INFOBIP_BASE_URL || process.env.INFOBIP_URL)),
+    whatsappReady: !!(process.env.INFOBIP_API_KEY && (process.env.INFOBIP_BASE_URL || process.env.INFOBIP_URL) && process.env.INFOBIP_WA_SENDER),
     INFOBIP_API_KEY: process.env.INFOBIP_API_KEY ? "SET" : "NOT SET",
     INFOBIP_BASE_URL: process.env.INFOBIP_BASE_URL || process.env.INFOBIP_URL || "NOT SET",
+    INFOBIP_WA_SENDER: process.env.INFOBIP_WA_SENDER ? `${process.env.INFOBIP_WA_SENDER.slice(0, 6)}****` : "NOT SET",
   };
 
   res.json({ ok: true, providers: results });
