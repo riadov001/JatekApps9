@@ -298,7 +298,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Topbar */}
         <header className="h-16 flex items-center justify-between px-4 md:px-6 border-b border-border bg-card gap-2">
-          <div className="flex items-center md:hidden gap-2">
+          <div className="flex items-center md:hidden gap-2 min-w-0">
             <Button
               variant="ghost"
               size="icon"
@@ -307,7 +307,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <span className="font-black text-xl text-primary tracking-tight">Jatek</span>
+            {(() => {
+              const allItems = navGroups.flatMap((g) => g.items);
+              const active = allItems.find((item) => item.href === location);
+              return active ? (
+                <span className="font-semibold text-base truncate">{active.label}</span>
+              ) : (
+                <span className="font-black text-xl text-primary tracking-tight">Jatek</span>
+              );
+            })()}
           </div>
           <div className="flex-1" />
           <div className="flex items-center space-x-4">

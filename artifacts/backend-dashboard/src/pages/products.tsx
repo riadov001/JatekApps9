@@ -135,7 +135,7 @@ export default function Products() {
         </Button>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild><Button className="gap-2"><Plus className="h-4 w-4" /> Nouveau produit</Button></DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[85dvh] overflow-y-auto">
             <DialogHeader><DialogTitle>Créer un produit</DialogTitle></DialogHeader>
             <form onSubmit={handleCreate} className="space-y-3 pt-4">
               <Field label="Boutique">
@@ -152,9 +152,9 @@ export default function Products() {
       </div>
 
       <Tabs defaultValue="produits">
-        <TabsList>
-          <TabsTrigger value="produits" className="gap-1.5"><Package className="h-4 w-4" />Produits</TabsTrigger>
-          <TabsTrigger value="categories" className="gap-1.5"><Tags className="h-4 w-4" />Catégories menu</TabsTrigger>
+        <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
+          <TabsTrigger value="produits" className="gap-1.5 shrink-0"><Package className="h-4 w-4" />Produits</TabsTrigger>
+          <TabsTrigger value="categories" className="gap-1.5 shrink-0"><Tags className="h-4 w-4" />Catégories menu</TabsTrigger>
         </TabsList>
         <TabsContent value="produits" className="pt-4">
       <Card>
@@ -216,7 +216,7 @@ export default function Products() {
       </Tabs>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Modifier {editing?.name}</DialogTitle></DialogHeader>
           {editing && (
             <form onSubmit={handleUpdate} className="space-y-3 pt-4">
@@ -330,7 +330,7 @@ function ProductMenuCategories() {
       </CardContent>
 
       <Dialog open={creating} onOpenChange={(o) => !o && setCreating(false)}>
-        <DialogContent>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Nouvelle catégorie produit</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); if (newCat.name.trim()) createMutation.mutate(); }} className="space-y-4 pt-2">
             <div className="space-y-1"><Label className="text-xs">Nom *</Label><Input value={newCat.name} onChange={(e) => setNewCat({ ...newCat, name: e.target.value })} required autoFocus /></div>
@@ -354,7 +354,7 @@ function ProductMenuCategories() {
       </Dialog>
 
       <Dialog open={!!renaming} onOpenChange={(o) => !o && setRenaming(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Renommer «{renaming?.name}»</DialogTitle></DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); if (renaming && newName.trim()) renameMutation.mutate({ id: renaming.id, name: newName.trim() }); }} className="space-y-4 pt-2">
             <div className="space-y-1"><Label className="text-xs">Nouveau nom</Label><Input value={newName} onChange={(e) => setNewName(e.target.value)} required /></div>
@@ -590,7 +590,7 @@ function OptionsDialog({ product, onClose }: { product: any | null; onClose: () 
 
   return (
     <Dialog open={!!product} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Options — {product.name}</DialogTitle>
           <DialogDescription>Gérez les tailles et suppléments affichés dans l'app mobile.</DialogDescription>
@@ -836,7 +836,7 @@ function ImportProductsDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o && !importing) { onClose(); setRows([]); setParseError(""); } }}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileUp className="h-5 w-5" /> Importer des produits

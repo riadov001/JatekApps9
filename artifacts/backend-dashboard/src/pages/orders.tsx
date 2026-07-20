@@ -281,17 +281,17 @@ export default function Orders() {
                 {/* Admin actions */}
                 <div className="rounded-lg border p-3 space-y-2">
                   <p className="text-sm font-medium">Actions administrateur</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" size="sm" className="gap-1.5 text-orange-600 border-orange-200 hover:bg-orange-50" onClick={() => setActionModal("refund")}>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" className="gap-1.5 text-orange-600 border-orange-200 hover:bg-orange-50 flex-1 min-w-[140px]" onClick={() => setActionModal("refund")}>
                       <RotateCcw className="h-4 w-4" /> Rembourser
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1.5 text-pink-600 border-pink-200 hover:bg-pink-50" onClick={() => setActionModal("gesture")}>
+                    <Button variant="outline" size="sm" className="gap-1.5 text-pink-600 border-pink-200 hover:bg-pink-50 flex-1 min-w-[140px]" onClick={() => setActionModal("gesture")}>
                       <Gift className="h-4 w-4" /> Geste commercial
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => setActionModal("chat")}>
+                    <Button variant="outline" size="sm" className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 flex-1 min-w-[140px]" onClick={() => setActionModal("chat")}>
                       <MessageSquare className="h-4 w-4" /> Chat client
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/20 hover:bg-destructive/5" onClick={() => setActionModal("cancel")} disabled={["delivered","cancelled"].includes(selectedOrder.status)}>
+                    <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/20 hover:bg-destructive/5 flex-1 min-w-[140px]" onClick={() => setActionModal("cancel")} disabled={["delivered","cancelled"].includes(selectedOrder.status)}>
                       <Ban className="h-4 w-4" /> Annuler
                     </Button>
                   </div>
@@ -304,7 +304,7 @@ export default function Orders() {
 
       {/* Action modals */}
       <Dialog open={actionModal === "refund"} onOpenChange={(o) => !o && setActionModal(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Rembourser la commande</DialogTitle></DialogHeader>
           <div className="space-y-3 pt-2">
             <div className="space-y-1"><Label className="text-xs">Montant (DH) *</Label><Input type="number" step="0.01" placeholder={`Max: ${selectedOrder?.total} DH`} value={actionForm.amount} onChange={(e) => setActionForm({ ...actionForm, amount: e.target.value })} /></div>
@@ -322,7 +322,7 @@ export default function Orders() {
       </Dialog>
 
       <Dialog open={actionModal === "cancel"} onOpenChange={(o) => !o && setActionModal(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Annuler la commande</DialogTitle></DialogHeader>
           <div className="space-y-3 pt-2">
             <div className="space-y-1"><Label className="text-xs">Raison *</Label><Input value={actionForm.reason} onChange={(e) => setActionForm({ ...actionForm, reason: e.target.value })} placeholder="Ex: Restaurant fermé, stock épuisé…" /></div>
@@ -341,7 +341,7 @@ export default function Orders() {
       </Dialog>
 
       <Dialog open={actionModal === "gesture"} onOpenChange={(o) => !o && setActionModal(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Geste commercial</DialogTitle></DialogHeader>
           <div className="space-y-3 pt-2">
             <div className="space-y-1"><Label className="text-xs">Montant à créditer (DH) *</Label><Input type="number" step="0.01" value={actionForm.amount} onChange={(e) => setActionForm({ ...actionForm, amount: e.target.value })} /></div>
@@ -359,7 +359,7 @@ export default function Orders() {
 
       {/* Chat modal */}
       <Dialog open={actionModal === "chat"} onOpenChange={(o) => !o && setActionModal(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Chat — Commande #{selectedOrder?.reference ?? selectedOrder?.id}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="h-64 overflow-y-auto border rounded-lg p-3 space-y-2 bg-muted/20">
