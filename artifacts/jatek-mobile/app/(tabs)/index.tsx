@@ -99,12 +99,12 @@ function PromoBanner({ onPress }: { onPress: () => void }) {
         <View style={s.promoTagBadge}>
           <Text style={s.promoTagTxt}>CODE PROMO</Text>
         </View>
-        <Text style={s.promoMinusClean}>-10%</Text>
-        <Text style={s.promoCodeClean}>avec WELCOME10</Text>
+        <Text style={s.promoMinusClean} numberOfLines={1}>-10%</Text>
+        <Text style={s.promoCodeClean} numberOfLines={1}>avec WELCOME10</Text>
       </View>
       <View style={s.promoBrandWrap}>
-        <Text style={s.promoBrandClean}>Jatek</Text>
-        <Ionicons name="arrow-forward-circle" size={24} color={PINK} />
+        <Text style={s.promoBrandClean} numberOfLines={1}>Jatek</Text>
+        <Ionicons name="arrow-forward-circle" size={28} color={PINK} />
       </View>
     </Pressable>
   );
@@ -130,7 +130,9 @@ function VipBannerCard({
       {imageUrl ? (
         <Image source={{ uri: imageUrl }} style={s.vipCardImg} resizeMode="cover" />
       ) : null}
-      <View style={s.vipCardScrim} />
+      {/* dark top-to-bottom scrim — makes text readable over any image */}
+      <View style={s.vipCardScrimTop} />
+      <View style={s.vipCardScrimBottom} />
       <View style={s.vipBadge}>
         <Ionicons name="star" size={11} color="#fff" />
         <Text style={s.vipBadgeTxt}>{badge}</Text>
@@ -146,7 +148,7 @@ function VipBannerCard({
 function SectionHeader({ title, onMore }: { title: string; onMore?: () => void }) {
   return (
     <View style={s.sectionHead}>
-      <Text style={s.sectionTitle}>{title}</Text>
+      <Text style={s.sectionTitle} numberOfLines={1}>{title}</Text>
       <TouchableOpacity onPress={onMore} activeOpacity={0.85} style={s.voirPlusBtn}>
         <Text style={s.voirPlusTxt}>Voir plus</Text>
       </TouchableOpacity>
@@ -444,7 +446,7 @@ export default function HomeScreen() {
         {/* ─── Découvrir en vidéo ─── */}
         <Animated.View entering={FadeInDown.delay(440).duration(500).springify()}>
           <SectionHeader
-            title="Decouvrir en video"
+            title="Découvrir en vidéo"
             onMore={() => { if (shorts.length > 0) { setInitialShort(0); setShortsVisible(true); } }}
           />
         </Animated.View>
@@ -463,10 +465,14 @@ export default function HomeScreen() {
                 resizeMode="cover"
               />
               <View style={s.videoScrim} />
-              <View style={s.videoPlay}>
-                <Ionicons name="play-circle-outline" size={26} color="#fff" />
+              {/* play icon centered */}
+              <View style={s.videoPlayWrap}>
+                <Ionicons name="play-circle" size={30} color="rgba(255,255,255,0.92)" />
               </View>
-              <Text style={s.videoTitle} numberOfLines={2}>{restaurant.name}</Text>
+              {/* title pinned to bottom */}
+              <View style={s.videoBottom}>
+                <Text style={s.videoTitle} numberOfLines={2}>{restaurant.name}</Text>
+              </View>
             </Pressable>
           ))}
           {shorts.length === 0 && !isLoading && (
@@ -477,7 +483,7 @@ export default function HomeScreen() {
         {/* ─── Pres de chez vous (horizontal scroll) ─── */}
         <Animated.View entering={FadeInDown.delay(560).duration(500).springify()}>
           <SectionHeader
-            title="Pres de chez vous"
+            title="Près de chez vous"
             onMore={() => router.push({ pathname: "/category/[slug]", params: { slug: "restauration" } })}
           />
         </Animated.View>
@@ -753,46 +759,49 @@ const s = StyleSheet.create({
   // ── Promo banner (clean, no colored bg) ──
   promoBanner: {
     width: "100%",
-    height: 84,
+    minHeight: 80,
     backgroundColor: "#fff",
-    borderRadius: 16,
+    borderRadius: 18,
     paddingHorizontal: 18,
+    paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     borderWidth: 1,
-    borderColor: "#F3F4F6",
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    borderColor: "#F0F0F5",
+    shadowColor: PINK,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
     overflow: "hidden",
+    gap: 12,
   },
-  promoBannerLeft: { gap: 2 },
+  promoBannerLeft: { flex: 1, minWidth: 0, gap: 3 },
   promoTagBadge: {
     alignSelf: "flex-start",
     backgroundColor: PINK_SOFT,
     borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
-  promoTagTxt: { fontSize: 10, fontFamily: "Inter_700Bold", color: PINK, letterSpacing: 0.5 },
+  promoTagTxt: { fontSize: 10, fontFamily: "Inter_700Bold", color: PINK, letterSpacing: 0.6 },
   promoMinusClean: {
-    fontSize: 26,
+    fontSize: 28,
     fontFamily: "Inter_900Black",
     color: TEXT_DARK,
     letterSpacing: -0.5,
-    lineHeight: 30,
+    lineHeight: 32,
   },
   promoCodeClean: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: "Inter_500Medium",
     color: TEXT_MUTED,
+    flexShrink: 1,
   },
-  promoBrandWrap: { alignItems: "center", gap: 4 },
+  promoBrandWrap: { alignItems: "center", gap: 6, flexShrink: 0 },
   promoBrandClean: {
-    fontSize: 22,
+    fontSize: 24,
     fontFamily: "Inter_900Black",
     color: PINK,
     fontStyle: "italic",
@@ -821,36 +830,48 @@ const s = StyleSheet.create({
   },
   vipCard: {
     width: SCREEN_W - 32,
-    height: 190,
-    borderRadius: 18,
+    height: 200,
+    borderRadius: 20,
     overflow: "hidden",
     justifyContent: "flex-end",
-    padding: 14,
+    padding: 16,
   },
   vipCardImg: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.45,
+    opacity: 0.65,
   },
-  vipCardScrim: {
+  // light vignette at the top
+  vipCardScrimTop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.25)",
+    backgroundColor: "rgba(0,0,0,0.10)",
+  },
+  // strong gradient-like overlay at the bottom where text lives
+  vipCardScrimBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 110,
+    backgroundColor: "rgba(0,0,0,0.55)",
   },
   vipBadge: {
     position: "absolute",
-    top: 12,
-    right: 12,
+    top: 14,
+    right: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     backgroundColor: "rgba(255,255,255,0.22)",
     borderRadius: 12,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
   },
-  vipBadgeTxt: { color: "#fff", fontSize: 10, fontFamily: "Inter_700Bold", letterSpacing: 0.4 },
-  vipCardBody: { gap: 2 },
+  vipBadgeTxt: { color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold", letterSpacing: 0.4 },
+  vipCardBody: { gap: 4, overflow: "hidden" },
   vipCardTitle: { color: "#fff", fontSize: 18, fontFamily: "Inter_900Black", letterSpacing: -0.3 },
-  vipCardSubtitle: { color: "#fff", fontSize: 12, fontFamily: "Inter_500Medium", opacity: 0.95 },
+  vipCardSubtitle: { color: "rgba(255,255,255,0.88)", fontSize: 13, fontFamily: "Inter_500Medium" },
 
   // ── Section headers ──
   sectionHead: {
@@ -862,16 +883,19 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
+    flex: 1,
     fontSize: 19,
     fontFamily: "Inter_700Bold",
     color: TEXT_DARK,
     letterSpacing: -0.3,
+    marginRight: 10,
   },
   voirPlusBtn: {
     backgroundColor: PINK,
     paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    flexShrink: 0,
   },
   voirPlusTxt: {
     color: "#fff",
@@ -882,16 +906,14 @@ const s = StyleSheet.create({
   // ── Videos ──
   videosRow: {
     paddingHorizontal: 16,
-    gap: 12,
+    gap: 10,
+    paddingBottom: 4,
   },
   videoCard: {
-    width: 100,
-    height: 160,
-    borderRadius: 14,
-    backgroundColor: "#E5E5E5",
-    alignItems: "flex-start",
-    justifyContent: "flex-end",
-    padding: 8,
+    width: 120,
+    height: 170,
+    borderRadius: 16,
+    backgroundColor: "#1A1A2E",
     overflow: "hidden",
     position: "relative",
   },
@@ -902,23 +924,33 @@ const s = StyleSheet.create({
   },
   videoScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(10,27,61,0.28)",
+    backgroundColor: "rgba(10,27,61,0.35)",
   },
-  videoPlay: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  // play icon centered over the card
+  videoPlayWrap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 40,
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 1,
+  },
+  // title + gradient pinned to the bottom
+  videoBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(10,27,61,0.58)",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
   videoTitle: {
     color: "#fff",
     fontSize: 11,
     fontFamily: "Inter_700Bold",
-    lineHeight: 14,
-    marginTop: 6,
-    zIndex: 1,
+    lineHeight: 15,
   },
 
   // ── Restaurant tiles (shared) ──
@@ -1004,7 +1036,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    flexWrap: "wrap",
+    overflow: "hidden",
   },
   tileMetaTxt: {
     fontSize: 11,
@@ -1024,7 +1056,7 @@ const s = StyleSheet.create({
     marginTop: 22,
   },
   gridSectionTitle: {
-    fontSize: 22,
+    fontSize: 19,
     fontFamily: "Inter_700Bold",
     color: TEXT_DARK,
     letterSpacing: -0.3,

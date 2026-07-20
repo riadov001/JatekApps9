@@ -24,8 +24,8 @@ function Row({ icon, label, onPress, danger, subtitle }: RowProps) {
     <TouchableOpacity onPress={onPress} activeOpacity={0.6} style={[styles.row, { borderBottomColor: colors.border }]}>
       <Ionicons name={icon as any} size={22} color={danger ? colors.destructive : colors.heading} />
       <View style={styles.rowTextWrap}>
-        <Text style={[styles.rowLabel, { color: danger ? colors.destructive : colors.heading }]}>{label}</Text>
-        {subtitle ? <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>{subtitle}</Text> : null}
+        <Text style={[styles.rowLabel, { color: danger ? colors.destructive : colors.heading }]} numberOfLines={1}>{label}</Text>
+        {subtitle ? <Text style={[styles.rowSub, { color: colors.mutedForeground }]} numberOfLines={1}>{subtitle}</Text> : null}
       </View>
       {!danger && <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />}
     </TouchableOpacity>
@@ -44,7 +44,7 @@ function QuickCard({ icon, label, accent, yellow, onPress }: { icon: string; lab
       style={[styles.quickCard, { backgroundColor: bg, borderColor: border }]}
     >
       <Ionicons name={icon as any} size={28} color={tint} />
-      <Text style={[styles.quickLabel, { color: tint }]}>{label}</Text>
+      <Text style={[styles.quickLabel, { color: tint }]} numberOfLines={1} adjustsFontSizeToFit>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -379,8 +379,8 @@ const styles = StyleSheet.create({
 
   // Quick action cards
   quickRow: { flexDirection: "row", gap: 10, paddingHorizontal: 16, marginTop: 12 },
-  quickCard: { flex: 1, height: 84, borderRadius: 16, borderWidth: 1, alignItems: "center", justifyContent: "center", gap: 6, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  quickLabel: { fontSize: 11.5, fontFamily: "Inter_600SemiBold", textAlign: "center", paddingHorizontal: 4 },
+  quickCard: { flex: 1, minHeight: 80, borderRadius: 16, borderWidth: 1, alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 14, paddingHorizontal: 4, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  quickLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", textAlign: "center", paddingHorizontal: 2 },
 
   // Premium upsell card
   premiumCard: {

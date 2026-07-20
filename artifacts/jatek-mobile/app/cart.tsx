@@ -251,7 +251,7 @@ export default function CartScreen() {
             <View key={item.cartLineId}>
               <View style={styles.cartItem}>
                 <View style={styles.cartItemInfo}>
-                  <Text style={[styles.cartItemName, { color: colors.foreground }]}>{item.name}</Text>
+                  <Text style={[styles.cartItemName, { color: colors.foreground }]} numberOfLines={2}>{item.name}</Text>
                   {(item.selectedSize || (item.selectedExtras && item.selectedExtras.length > 0)) && (
                     <Text style={[styles.cartItemOptions, { color: colors.mutedForeground }]} numberOfLines={1}>
                       {[
@@ -589,7 +589,7 @@ const styles = StyleSheet.create({
   section: { marginHorizontal: 16, borderRadius: 14, borderWidth: 1, overflow: "hidden", marginBottom: 16 },
   cartItem: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14 },
   cartItemInfo: { flex: 1, gap: 3 },
-  cartItemName: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  cartItemName: { fontSize: 14, fontFamily: "Inter_500Medium", flexShrink: 1 },
   cartItemPrice: { fontSize: 12, fontFamily: "Inter_400Regular" },
   qtyRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   qtyBtn: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },

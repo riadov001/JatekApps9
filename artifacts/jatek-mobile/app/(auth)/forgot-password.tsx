@@ -63,12 +63,12 @@ export default function ForgotPasswordScreen() {
   const s = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background, paddingHorizontal: 24 },
     inner: { flex: 1, justifyContent: "center", gap: 24 },
-    title: { fontSize: 28, fontWeight: "800", color: colors.text, textAlign: "center" },
-    subtitle: { fontSize: 15, color: colors.textSecondary, textAlign: "center", lineHeight: 22 },
+    title: { fontSize: 28, fontWeight: "800", color: colors.foreground, textAlign: "center" },
+    subtitle: { fontSize: 15, color: colors.mutedForeground, textAlign: "center", lineHeight: 22 },
     input: {
       borderWidth: 1.5, borderColor: colors.border, borderRadius: 14,
-      padding: 14, fontSize: 16, color: colors.text,
-      backgroundColor: colors.surface,
+      padding: 14, fontSize: 16, color: colors.foreground,
+      backgroundColor: colors.card,
     },
     btn: {
       backgroundColor: colors.primary, borderRadius: 14, padding: 16,
@@ -92,7 +92,7 @@ export default function ForgotPasswordScreen() {
             <TextInput
               style={s.input}
               placeholder="votre@email.com"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={colors.mutedForeground}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -117,7 +117,7 @@ export default function ForgotPasswordScreen() {
             <TextInput
               style={s.input}
               placeholder="Code de vérification"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={colors.mutedForeground}
               keyboardType="default"
               autoCapitalize="none"
               value={code}
@@ -126,7 +126,7 @@ export default function ForgotPasswordScreen() {
             <TextInput
               style={s.input}
               placeholder="Nouveau mot de passe (min. 8 caractères)"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={colors.mutedForeground}
               secureTextEntry
               value={newPassword}
               onChangeText={setNewPassword}
@@ -134,7 +134,7 @@ export default function ForgotPasswordScreen() {
             <TextInput
               style={s.input}
               placeholder="Confirmer le mot de passe"
-              placeholderTextColor={colors.textSecondary}
+              placeholderTextColor={colors.mutedForeground}
               secureTextEntry
               value={confirmPassword}
               onChangeText={setConfirmPassword}

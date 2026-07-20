@@ -321,13 +321,13 @@ export function JatekOffersPanel({ tabBarHeight }: Props) {
                     accessibilityLabel={`Voir l'offre ${ad.tag}`}
                     style={[st.card, isActive && st.cardActive]}
                   >
-                    <Text style={st.cardTitleTop}>JATEK</Text>
-                    <Text style={st.cardTitleBottom}>{ad.tag}</Text>
+                    <Text style={st.cardTitleTop} numberOfLines={1}>JATEK</Text>
+                    <Text style={st.cardTitleBottom} numberOfLines={1}>{ad.tag}</Text>
                     <View style={[st.cardIcon, isActive && st.cardIconActive]}>
                       <Ionicons name={ad.icon} size={26} color={isActive ? "#fff" : TURQUOISE} />
                     </View>
                     <View style={[st.cardFoot, isActive && st.cardFootActive]}>
-                      <Text style={st.cardFootTxt}>{ad.label}</Text>
+                      <Text style={st.cardFootTxt} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{ad.label}</Text>
                     </View>
                   </TouchableOpacity>
                 </Animated.View>
@@ -356,7 +356,7 @@ export function JatekOffersPanel({ tabBarHeight }: Props) {
       >
         <View style={st.barLeft}>
           <Ionicons name="pricetag" size={13} color={PINK} style={{ marginRight: 6 }} />
-          <Text style={st.barLabel}>Offres Jatek</Text>
+          <Text style={st.barLabel} numberOfLines={1}>Offres Jatek</Text>
         </View>
         <Animated.View style={{ transform: [{ rotate: chevronRotate }] }}>
           <Ionicons name="chevron-up" size={16} color={PINK} />
@@ -507,7 +507,9 @@ const st = StyleSheet.create({
     bottom: 0,
     backgroundColor: TURQUOISE_DEEP,
     paddingVertical: 6,
+    paddingHorizontal: 4,
     alignItems: "center",
+    overflow: "hidden",
   },
   cardFootActive: {
     backgroundColor: TURQUOISE,

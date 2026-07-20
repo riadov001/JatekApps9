@@ -188,7 +188,7 @@ export default function CouponsScreen() {
                       </View>
                     )}
                   </View>
-                  <Text style={[styles.milestoneReward, { color: colors.foreground }]}>{m.reward}</Text>
+                  <Text style={[styles.milestoneReward, { color: colors.foreground }]} numberOfLines={2}>{m.reward}</Text>
                 </View>
                 <TouchableOpacity
                   disabled={!unlocked}
