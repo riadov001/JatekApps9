@@ -9,11 +9,13 @@ import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { GoogleMapPicker } from "@/components/GoogleMapPicker";
 import { useFriendlyAlert } from "@/components/FriendlyAlert";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { OUJDA_CENTER, checkDeliveryZone, reverseGeocode } from "@/utils/deliveryZone";
 
 export default function AddressesScreen() {
   const colors = useColors();
   const friendly = useFriendlyAlert();
+  const { user, isLoading: authLoading } = useAuth();
   const { select, returnTo } = useLocalSearchParams<{ select?: string; returnTo?: string }>();
   const selectMode = select === "1";
   const { setSelectedAddress } = useCart();
@@ -44,6 +46,7 @@ export default function AddressesScreen() {
   const [coords, setCoords] = useState({ latitude: OUJDA_CENTER.latitude, longitude: OUJDA_CENTER.longitude });
 
   const load = useCallback(async () => {
+    if (!user) { setLoading(false); return; }
     try { setItems(await listAddresses()); }
     catch (e: any) {
       friendly.show({
@@ -56,7 +59,7 @@ export default function AddressesScreen() {
       });
     }
     finally { setLoading(false); }
-  }, [friendly]);
+  }, [friendly, user]);
   useEffect(() => { load(); }, [load]);
 
   const openAdd = () => { setEditing(null); setLabel(""); setFullAddress(""); setDetails(""); setIsDefault(items.length === 0); setFormAddrInZone(true); setCoords({ latitude: OUJDA_CENTER.latitude, longitude: OUJDA_CENTER.longitude }); setShowForm(true); };
@@ -139,6 +142,47 @@ export default function AddressesScreen() {
     setItems((prev) => prev.map((x) => ({ ...x, isDefault: x.id === id })));
     try { await updateAddress(id, { isDefault: true }); } catch { load(); }
   };
+
+  // ── Auth gate ──────────────────────────────────────────────────────────────
+  if (authLoading) {
+    return (
+      <ProfileScreenLayout title={selectMode ? "Choisir une adresse" : "Adresses enregistrées"} scroll={false}>
+        <View style={styles.center}><ActivityIndicator color={colors.primary} size="large" /></View>
+      </ProfileScreenLayout>
+    );
+  }
+
+  if (!user) {
+    return (
+      <ProfileScreenLayout title={selectMode ? "Choisir une adresse" : "Adresses enregistrées"} scroll={false}>
+        <View style={styles.center}>
+          <View style={[styles.authIconWrap, { backgroundColor: colors.primary + "15" }]}>
+            <Ionicons name="lock-closed-outline" size={40} color={colors.primary} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.heading }]}>Connexion requise</Text>
+          <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
+            {selectMode
+              ? "Connectez-vous pour choisir ou enregistrer une adresse de livraison."
+              : "Connectez-vous pour gérer vos adresses enregistrées."}
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push("/(auth)/login")}
+            style={[styles.authBtn, { backgroundColor: colors.primary }]}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="person-outline" size={18} color="#fff" />
+            <Text style={[styles.authBtnText]}>Se connecter</Text>
+          </TouchableOpacity>
+          {router.canGoBack() && (
+            <TouchableOpacity onPress={() => router.back()} style={styles.backLink} activeOpacity={0.7}>
+              <Text style={[styles.backLinkText, { color: colors.mutedForeground }]}>Retour</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </ProfileScreenLayout>
+    );
+  }
+  // ───────────────────────────────────────────────────────────────────────────
 
   return (
     <ProfileScreenLayout
@@ -236,8 +280,13 @@ export default function AddressesScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 8 },
-  emptyTitle: { fontSize: 18, fontFamily: "Inter_700Bold", marginTop: 12 },
-  emptySub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
+  emptyTitle: { fontSize: 18, fontFamily: "Inter_700Bold", marginTop: 12, textAlign: "center" },
+  emptySub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
+  authIconWrap: { width: 80, height: 80, borderRadius: 40, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  authBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 28, marginTop: 8 },
+  authBtnText: { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold" },
+  backLink: { marginTop: 8, paddingVertical: 8 },
+  backLinkText: { fontSize: 14, fontFamily: "Inter_500Medium" },
   card: { flexDirection: "row", alignItems: "center", padding: 14, borderRadius: 14, borderWidth: 1, marginBottom: 10, gap: 12 },
   iconWrap: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 15, fontFamily: "Inter_600SemiBold" },

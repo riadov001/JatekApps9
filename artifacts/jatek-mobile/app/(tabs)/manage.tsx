@@ -11,7 +11,7 @@
 import React, { useCallback, useState } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, RefreshControl,
-  StyleSheet, Alert, ActivityIndicator, Platform, Modal, TextInput, Switch,
+  StyleSheet, Alert, ActivityIndicator, Platform, Modal, TextInput, Switch, KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, FadeInDown, Layout } from "react-native-reanimated";
@@ -192,17 +192,23 @@ function MenuSection({ restaurant, token, colors }: { restaurant: any; token: st
   const [form, setForm] = useState<MenuForm>(MENU_EMPTY);
   const [saving, setSaving] = useState(false);
 
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
   const fetchItems = React.useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
+    setFetchError(null);
     try {
       const res = await fetch(
         `${apiBase}/api/backend/products?shopId=${restaurant.id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      if (!res.ok) throw new Error(`Erreur ${res.status}`);
       const data = await res.json();
       setItems(Array.isArray(data) ? data : (data.items ?? []));
-    } catch { /* noop */ } finally { setLoading(false); }
-  }, [restaurant.id]);
+    } catch (e: any) {
+      setFetchError(e?.message ?? "Impossible de charger le menu.");
+    } finally { setLoading(false); }
+  }, [restaurant.id, token]);
 
   React.useEffect(() => { fetchItems(); }, [fetchItems]);
 
@@ -258,6 +264,15 @@ function MenuSection({ restaurant, token, colors }: { restaurant: any; token: st
     <View style={{ flex: 1, minHeight: 300 }}>
       {loading ? (
         <View style={[styles.center, { marginTop: 40 }]}><ActivityIndicator color={colors.primary} /></View>
+      ) : fetchError ? (
+        <View style={[styles.center, { marginTop: 40 }]}>
+          <Ionicons name="cloud-offline-outline" size={48} color={colors.mutedForeground} />
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Chargement impossible</Text>
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{fetchError}</Text>
+          <TouchableOpacity onPress={() => fetchItems()} style={[menuSt.saveBtn, { backgroundColor: colors.primary, paddingHorizontal: 24, marginTop: 12 }]}>
+            <Text style={menuSt.saveBtnText}>Réessayer</Text>
+          </TouchableOpacity>
+        </View>
       ) : items.length === 0 ? (
         <View style={[styles.center, { marginTop: 40 }]}>
           <Ionicons name="restaurant-outline" size={48} color={colors.mutedForeground} />
@@ -290,7 +305,8 @@ function MenuSection({ restaurant, token, colors }: { restaurant: any; token: st
       </TouchableOpacity>
 
       <Modal visible={modalOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalOpen(false)}>
-        <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
+        <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <Text style={[menuSt.modalTitle, { color: colors.foreground }]}>{editingItem ? "Modifier le plat" : "Nouveau plat"}</Text>
             <TouchableOpacity onPress={() => setModalOpen(false)}><Ionicons name="close" size={24} color={colors.foreground} /></TouchableOpacity>
@@ -328,6 +344,7 @@ function MenuSection({ restaurant, token, colors }: { restaurant: any; token: st
             {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={menuSt.saveBtnText}>{editingItem ? "Enregistrer" : "Créer"}</Text>}
           </TouchableOpacity>
         </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

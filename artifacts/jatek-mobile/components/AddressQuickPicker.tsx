@@ -6,6 +6,7 @@ import { router } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 import { useT } from "@/contexts/LanguageContext";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { listAddresses, type SavedAddress } from "@/lib/api";
 import { reverseGeocode, checkDeliveryZone } from "@/utils/deliveryZone";
 // checkDeliveryZone used for GPS pick
@@ -18,6 +19,7 @@ interface Props {
 export function AddressQuickPicker({ visible, onClose }: Props) {
   const colors = useColors();
   const t = useT();
+  const { user } = useAuth();
   const { setSelectedAddress } = useCart();
   const [items, setItems] = useState<SavedAddress[]>([]);
   const [loading, setLoading] = useState(false);
@@ -25,13 +27,13 @@ export function AddressQuickPicker({ visible, onClose }: Props) {
   const [locating, setLocating] = useState(false);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || !user) return;
     setLoading(true);
     listAddresses()
       .then(setItems)
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
-  }, [visible]);
+  }, [visible, user]);
 
   const pick = (a: SavedAddress) => {
     // Saved addresses passed zone validation at save time, so trust it.
@@ -77,7 +79,28 @@ export function AddressQuickPicker({ visible, onClose }: Props) {
             </TouchableOpacity>
 
             <Text style={[sheetStyles.section, { color: colors.mutedForeground }]}>{t("addr_sheet_pick")}</Text>
-            {loading ? (
+
+            {/* ── Not logged in: invite to connect ── */}
+            {!user ? (
+              <View style={[sheetStyles.loginPrompt, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+                <Ionicons name="lock-closed-outline" size={22} color={colors.primary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[sheetStyles.loginTitle, { color: colors.heading }]}>
+                    Connectez-vous pour voir vos adresses
+                  </Text>
+                  <Text style={[sheetStyles.loginSub, { color: colors.mutedForeground }]}>
+                    Enregistrez vos lieux de livraison favoris.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => { onClose(); router.push("/(auth)/login"); }}
+                  style={[sheetStyles.loginBtn, { backgroundColor: colors.primary }]}
+                  activeOpacity={0.85}
+                >
+                  <Text style={sheetStyles.loginBtnText}>Se connecter</Text>
+                </TouchableOpacity>
+              </View>
+            ) : loading ? (
               <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />
             ) : items.length === 0 ? (
               <Text style={[sheetStyles.emptyText, { color: colors.mutedForeground }]}>{t("addr_sheet_no_saved")}</Text>
@@ -101,9 +124,22 @@ export function AddressQuickPicker({ visible, onClose }: Props) {
               />
             )}
 
-            <TouchableOpacity onPress={() => { onClose(); router.push("/profile/addresses?select=1"); }} style={[sheetStyles.manageBtn, { borderColor: colors.border }]} activeOpacity={0.7}>
-              <Ionicons name="settings-outline" size={18} color={colors.heading} />
-              <Text style={[sheetStyles.manageText, { color: colors.heading }]}>{t("home_manage_addresses")}</Text>
+            <TouchableOpacity
+              onPress={() => {
+                onClose();
+                if (user) {
+                  router.push("/profile/addresses?select=1");
+                } else {
+                  router.push("/(auth)/login");
+                }
+              }}
+              style={[sheetStyles.manageBtn, { borderColor: colors.border }]}
+              activeOpacity={0.7}
+            >
+              <Ionicons name={user ? "settings-outline" : "person-outline"} size={18} color={colors.heading} />
+              <Text style={[sheetStyles.manageText, { color: colors.heading }]}>
+                {user ? t("home_manage_addresses") : "Se connecter"}
+              </Text>
             </TouchableOpacity>
           </TouchableOpacity>
         </TouchableOpacity>
@@ -148,6 +184,11 @@ const sheetStyles = StyleSheet.create({
   emptyText: { fontSize: 13, textAlign: "center", paddingVertical: 16 },
   manageBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, padding: 12, borderRadius: 12, borderWidth: 1, marginTop: 6 },
   manageText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  loginPrompt: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 14, borderWidth: 1, marginBottom: 6 },
+  loginTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  loginSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  loginBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
+  loginBtnText: { color: "#fff", fontSize: 13, fontFamily: "Inter_700Bold" },
 });
 
 const gpsStyles = StyleSheet.create({

@@ -277,9 +277,9 @@ const styles = StyleSheet.create({
     marginBottom: 24, width: "100%",
   },
   demoText: { fontSize: 13, fontFamily: "Inter_500Medium" },
-  otpRow: { flexDirection: "row", gap: 10, marginBottom: 24 },
+  otpRow: { flexDirection: "row", gap: 8, marginBottom: 24, alignSelf: "stretch" },
   otpBox: {
-    width: 48, height: 58, borderRadius: 12, borderWidth: 2,
+    flex: 1, minWidth: 40, height: 56, borderRadius: 12, borderWidth: 2,
     fontSize: 22, fontFamily: "Inter_700Bold",
   },
   errorText: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", marginBottom: 12 },

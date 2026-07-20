@@ -44,7 +44,7 @@ function AdForm({ form, setForm }: { form: typeof EMPTY; setForm: (f: typeof EMP
   const set = (k: string, v: any) => setForm({ ...form, [k]: v });
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Type">
           <Select value={form.type} onValueChange={(v) => set("type", v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -57,11 +57,11 @@ function AdForm({ form, setForm }: { form: typeof EMPTY; setForm: (f: typeof EMP
       </div>
       <Field label="Titre *"><Input required value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Ex: Offre spéciale -20%" /></Field>
       <Field label="Sous-titre"><Input value={form.subtitle} onChange={(e) => set("subtitle", e.target.value)} placeholder="Ex: Livraison offerte ce soir" /></Field>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Badge"><Input value={form.badge} onChange={(e) => set("badge", e.target.value)} placeholder="Ex: VIP, PROMO, NEW" /></Field>
         <Field label="Icône"><Input value={form.icon} onChange={(e) => set("icon", e.target.value)} placeholder="Ex: star, flame, gift" /></Field>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Couleur fond">
           <div className="flex gap-2 items-center">
             <input type="color" value={form.bgColor} onChange={(e) => set("bgColor", e.target.value)} className="h-9 w-12 rounded border cursor-pointer" />

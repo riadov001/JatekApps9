@@ -384,6 +384,7 @@ export default function HomeScreen() {
           entering={FadeInDown.delay(140).duration(500).springify()}
           horizontal
           showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled
           style={s.shopCatsScroll}
           contentContainerStyle={s.shopCatsContent}
         >
@@ -411,6 +412,7 @@ export default function HomeScreen() {
           entering={FadeInDown.delay(320).duration(550).springify()}
           horizontal
           showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled
           contentContainerStyle={s.vipScrollRow}
           decelerationRate="fast"
           snapToInterval={SCREEN_W - 20}
@@ -450,6 +452,7 @@ export default function HomeScreen() {
           entering={FadeInDown.delay(500).duration(550).springify()}
           horizontal
           showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled
           contentContainerStyle={s.videosRow}
         >
           {shorts.map((restaurant, i) => (
@@ -485,6 +488,7 @@ export default function HomeScreen() {
             entering={FadeInDown.delay(620).duration(550).springify()}
             horizontal
             showsHorizontalScrollIndicator={false}
+            nestedScrollEnabled
             contentContainerStyle={s.horizontalRow}
           >
             {(restaurants ?? []).slice(0, 6).map((r, i) => (

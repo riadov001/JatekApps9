@@ -1,5 +1,5 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   ShoppingBag,
@@ -16,6 +16,8 @@ import {
   Bike,
   Smartphone,
   ChevronRight,
+  Menu,
+  X,
 } from 'lucide-react';
 
 const fadeIn = {
@@ -46,26 +48,84 @@ const Wave = () => (
   </svg>
 );
 
-const Navbar = () => (
-  <nav className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-[#EBEBEB]/80 px-6 py-4">
-    <div className="max-w-7xl mx-auto flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <img src="/jatek-logo.png" alt="Jatek" className="h-8 md:h-10 object-contain" />
+const NAV_LINKS = [
+  { href: '#services', label: 'Services', color: 'hover:text-brand-pink' },
+  { href: '#tracking', label: 'Suivi Live', color: 'hover:text-brand-teal' },
+  { href: '#promos', label: 'Promos', color: 'hover:text-brand-yellow' },
+  { href: '#download', label: 'Télécharger', color: 'hover:text-brand-pink' },
+];
+
+const Navbar = () => {
+  const [open, setOpen] = useState(false);
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-md border-b border-[#EBEBEB]/80">
+      <div className="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between gap-4">
+        {/* Logo */}
+        <div className="flex items-center gap-2 shrink-0">
+          <img src="/jatek-logo.png" alt="Logo Jatek" className="h-8 md:h-9 w-auto object-contain" />
+        </div>
+
+        {/* Desktop links */}
+        <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-[#6B7280]">
+          {NAV_LINKS.slice(0, 3).map(l => (
+            <a key={l.href} href={l.href} className={`transition-colors ${l.color}`}>{l.label}</a>
+          ))}
+        </div>
+
+        {/* Desktop CTA */}
+        <a
+          href="#download"
+          className="hidden md:inline-flex bg-brand-pink text-white px-5 py-2.5 rounded-full font-bold text-sm hover:bg-brand-pink-deep transition-all duration-300 shadow-soft shrink-0"
+        >
+          Télécharger l'app
+        </a>
+
+        {/* Mobile: hamburger */}
+        <button
+          onClick={() => setOpen(v => !v)}
+          className="md:hidden p-2 rounded-xl text-[#0A1B3D] hover:bg-[#F5F5F5] transition-colors"
+          aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
+          aria-expanded={open}
+        >
+          {open ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
       </div>
-      <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-[#6B7280]">
-        <a href="#services" className="hover:text-brand-pink transition-colors">Services</a>
-        <a href="#tracking" className="hover:text-brand-teal transition-colors">Suivi Live</a>
-        <a href="#promos" className="hover:text-brand-yellow transition-colors">Promos</a>
-      </div>
-      <a
-        href="#download"
-        className="bg-brand-pink text-white px-5 py-2.5 rounded-full font-bold text-sm hover:bg-brand-pink-deep transition-all duration-300 shadow-soft"
-      >
-        Télécharger l'app
-      </a>
-    </div>
-  </nav>
-);
+
+      {/* Mobile drawer */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.22, ease: 'easeInOut' }}
+            className="md:hidden overflow-hidden bg-white border-t border-[#EBEBEB]"
+          >
+            <div className="px-5 py-4 flex flex-col gap-1">
+              {NAV_LINKS.map(l => (
+                <a
+                  key={l.href}
+                  href={l.href}
+                  onClick={() => setOpen(false)}
+                  className={`py-3 px-4 rounded-xl font-semibold text-[#0A1B3D] text-base transition-colors hover:bg-[#FFF0F6] ${l.color}`}
+                >
+                  {l.label}
+                </a>
+              ))}
+              <a
+                href="#download"
+                onClick={() => setOpen(false)}
+                className="mt-2 bg-brand-pink text-white py-3.5 rounded-full font-bold text-base text-center hover:bg-brand-pink-deep transition-all duration-300 shadow-soft"
+              >
+                Télécharger l'app
+              </a>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </nav>
+  );
+};
 
 const Hero = () => (
   <section className="relative pt-24 md:pt-28 pb-16 md:pb-24 overflow-hidden bg-brand-pink">

@@ -114,8 +114,19 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.bottom}>
+        {target === "prod" && (
+          <Pressable
+            onPress={() => router.push("/(auth)/forgot-password")}
+            style={{ alignSelf: "center" }}
+            hitSlop={12}
+          >
+            <Text style={[styles.forgotLink, { color: colors.primary, fontFamily: "Inter_500Medium" }]}>
+              Mot de passe oublié ?
+            </Text>
+          </Pressable>
+        )}
         <Text style={[styles.legal, { color: colors.mutedForeground, fontFamily: "Inter_400Regular" }]}>
-          {target === "prod" ? "Backend connecté : backend.jatek.app" : "En continuant, vous acceptez les conditions d'utilisation de Jatek."}
+          {target === "prod" ? "Connecté à ma.jatek.app" : "En continuant, vous acceptez les conditions d'utilisation de Jatek."}
         </Text>
         <Pressable onPress={onContinue} disabled={!valid || loading} style={({ pressed }) => [styles.button, { backgroundColor: valid ? colors.primary : colors.muted, opacity: pressed ? 0.85 : 1 }]}>
           {loading ? <ActivityIndicator color={colors.primaryForeground} /> : (
@@ -148,7 +159,8 @@ const styles = StyleSheet.create({
   dial: { fontSize: 15 },
   textInput: { flex: 1, fontSize: 16, paddingHorizontal: 16, height: "100%" },
   error: { fontSize: 13, marginTop: 4 },
-  bottom: { marginTop: "auto", paddingTop: 32, gap: 16 },
+  bottom: { marginTop: "auto", paddingTop: 32, gap: 12 },
+  forgotLink: { fontSize: 14, textAlign: "center", paddingVertical: 4 },
   legal: { fontSize: 12, textAlign: "center", lineHeight: 18, paddingHorizontal: 8 },
   button: { height: 56, alignItems: "center", justifyContent: "center", borderRadius: 28 },
   buttonText: { fontSize: 17 },

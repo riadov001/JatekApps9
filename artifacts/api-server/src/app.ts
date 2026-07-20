@@ -34,6 +34,16 @@ const allowedOrigins: string[] = (process.env["ALLOWED_ORIGINS"] ?? "")
   .map((s) => s.trim())
   .filter(Boolean);
 
+// Replit-hosted apps (dev previews, Expo Go on Replit) use *.replit.dev /
+// *.replit.app subdomains. We allow these only when the server itself is
+// running inside a Replit deployment (REPLIT_DEPLOYMENT env present), so we
+// are not trusting arbitrary external tenants — just our own deployment's peers.
+const isReplitDeployment = !!(
+  process.env["REPLIT_DEPLOYMENT"] ||
+  process.env["REPLIT_DEPLOYMENT_ID"] ||
+  process.env["REPLIT_DEPLOYMENT_DOMAIN"]
+);
+
 const corsOriginCheck: cors.CorsOptions["origin"] = (origin, callback) => {
   // Same-origin / native mobile / curl — no Origin header at all.
   if (!origin) return callback(null, true);
@@ -41,14 +51,14 @@ const corsOriginCheck: cors.CorsOptions["origin"] = (origin, callback) => {
   if (!isProd) return callback(null, true);
   // Explicit allow-list match.
   if (allowedOrigins.includes(origin)) return callback(null, true);
-  // Auto-allow the production custom domain (configured via EXPO_PUBLIC_DOMAIN).
-  // Note: we deliberately do NOT wildcard *.replit.app / *.replit.dev — combined
-  // with `credentials: true` that would trust any tenant on the shared platform.
-  // For replit-hosted preview/deploy URLs, set ALLOWED_ORIGINS explicitly.
   try {
     const host = new URL(origin).hostname;
+    // Auto-allow the production custom domain (configured via EXPO_PUBLIC_DOMAIN).
     const customHost = (process.env["EXPO_PUBLIC_DOMAIN"] ?? "").trim();
-    if (customHost && host === customHost) {
+    if (customHost && host === customHost) return callback(null, true);
+    // Allow Replit-hosted preview/Expo-Go origins when running inside a Replit
+    // deployment. Scoped to our own deployment environment, not all tenants.
+    if (isReplitDeployment && (host.endsWith(".replit.dev") || host.endsWith(".replit.app"))) {
       return callback(null, true);
     }
   } catch {

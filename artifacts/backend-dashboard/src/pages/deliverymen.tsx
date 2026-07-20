@@ -177,15 +177,15 @@ export default function Deliverymen() {
             <DialogDescription>Mettez à jour les informations du livreur</DialogDescription>
           </DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); if (editing) updateMutation.mutate({ id: editing.id, data: editForm }); }} className="space-y-3 pt-2">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1"><Label className="text-xs">Nom</Label><Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="Nom complet" /></div>
               <div className="space-y-1"><Label className="text-xs">Téléphone</Label><Input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} placeholder="+212..." /></div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1"><Label className="text-xs">Type de véhicule</Label><Input value={editForm.vehicleType} onChange={(e) => setEditForm({ ...editForm, vehicleType: e.target.value })} placeholder="moto, vélo, voiture..." /></div>
               <div className="space-y-1"><Label className="text-xs">Plaque</Label><Input value={editForm.vehiclePlate} onChange={(e) => setEditForm({ ...editForm, vehiclePlate: e.target.value })} placeholder="Ex: A-12345-B" /></div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1"><Label className="text-xs">CIN / National ID</Label><Input value={editForm.nationalId} onChange={(e) => setEditForm({ ...editForm, nationalId: e.target.value })} placeholder="CIN" /></div>
               <div className="space-y-1"><Label className="text-xs">N° Permis (optionnel)</Label><Input value={editForm.licenseNumber} onChange={(e) => setEditForm({ ...editForm, licenseNumber: e.target.value })} placeholder="Numéro de permis" /></div>
             </div>
@@ -211,18 +211,16 @@ export default function Deliverymen() {
             <DialogDescription>Créez un compte livreur. Un mot de passe temporaire sera généré et vous sera affiché après la création.</DialogDescription>
           </DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate(newForm); }} className="space-y-3 pt-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1 col-span-2"><Label className="text-xs">Nom complet *</Label><Input required value={newForm.name} onChange={(e) => setNewForm({ ...newForm, name: e.target.value })} placeholder="Nom du livreur" /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><Label className="text-xs">Nom complet *</Label><Input required value={newForm.name} onChange={(e) => setNewForm({ ...newForm, name: e.target.value })} placeholder="Nom du livreur" /></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1"><Label className="text-xs">Téléphone *</Label><Input required value={newForm.phone} onChange={(e) => setNewForm({ ...newForm, phone: e.target.value })} placeholder="+212..." /></div>
               <div className="space-y-1"><Label className="text-xs">Email (optionnel)</Label><Input type="email" value={newForm.email} onChange={(e) => setNewForm({ ...newForm, email: e.target.value })} placeholder="email@..." /></div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1"><Label className="text-xs">Type de véhicule</Label><Input value={newForm.vehicleType} onChange={(e) => setNewForm({ ...newForm, vehicleType: e.target.value })} placeholder="moto, vélo, voiture..." /></div>
               <div className="space-y-1"><Label className="text-xs">Plaque</Label><Input value={newForm.vehiclePlate} onChange={(e) => setNewForm({ ...newForm, vehiclePlate: e.target.value })} placeholder="Ex: A-12345-B" /></div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1"><Label className="text-xs">CIN / National ID</Label><Input value={newForm.nationalId} onChange={(e) => setNewForm({ ...newForm, nationalId: e.target.value })} placeholder="CIN" /></div>
               <div className="space-y-1"><Label className="text-xs">N° Permis (optionnel)</Label><Input value={newForm.licenseNumber} onChange={(e) => setNewForm({ ...newForm, licenseNumber: e.target.value })} placeholder="Numéro de permis" /></div>
             </div>
