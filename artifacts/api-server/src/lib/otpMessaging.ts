@@ -250,13 +250,20 @@ async function sendTwilioWhatsapp(to: string, body: string): Promise<void> {
 }
 
 // ─── Resend (email OTP) ───────────────────────────────────────────────────────
+// RESEND_EMAIL_FROM is accepted as an alias for RESEND_FROM_EMAIL.
+function getResendApiKey(): string | undefined {
+  return process.env.RESEND_API_KEY;
+}
+function getResendFromEmail(): string | undefined {
+  return process.env.RESEND_FROM_EMAIL || process.env.RESEND_EMAIL_FROM;
+}
 function resendConfigured(): boolean {
-  return !!(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL);
+  return !!(getResendApiKey() && getResendFromEmail());
 }
 
 async function sendResendEmail(to: string, otp: string, fullBody: string): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY!;
-  const from = process.env.RESEND_FROM_EMAIL!;
+  const apiKey = getResendApiKey()!;
+  const from = getResendFromEmail()!;
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -317,7 +324,8 @@ export async function sendOtpEmail(
   }
 }
 
-// ─── Public: SMS/WhatsApp OTP ─────────────────────────────────────────────────
+// ─── Public: WhatsApp/SMS OTP ─────────────────────────────────────────────────
+// WhatsApp is tried first (preferred channel), SMS is fallback.
 export async function sendOtpMessage(
   to: string,
   body: string
@@ -328,16 +336,7 @@ export async function sendOtpMessage(
 
   type Step = { channel: OtpChannel; available: boolean; fn: () => Promise<void> };
   const steps: Step[] = [
-    {
-      channel: "infobip-sms",
-      available: infobipReady,
-      fn: () => sendInfobipSms(to, body),
-    },
-    {
-      channel: "twilio-sms",
-      available: twilioReady,
-      fn: () => sendTwilioSms(to, body),
-    },
+    // ── WhatsApp (preferred) ────────────────────────────────────────────────
     {
       channel: "infobip-whatsapp",
       available: infobipReady && !!process.env.INFOBIP_WA_SENDER,
@@ -347,6 +346,17 @@ export async function sendOtpMessage(
       channel: "twilio-whatsapp",
       available: twilioReady,
       fn: () => sendTwilioWhatsapp(to, body),
+    },
+    // ── SMS (fallback only) ─────────────────────────────────────────────────
+    {
+      channel: "infobip-sms",
+      available: infobipReady,
+      fn: () => sendInfobipSms(to, body),
+    },
+    {
+      channel: "twilio-sms",
+      available: twilioReady,
+      fn: () => sendTwilioSms(to, body),
     },
   ];
 

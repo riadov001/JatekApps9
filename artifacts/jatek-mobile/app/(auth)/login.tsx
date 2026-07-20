@@ -14,7 +14,6 @@ import { DEFAULT_COUNTRY, type Country } from "@/lib/countries";
 import { useT } from "@/contexts/LanguageContext";
 import { useAuth, type AuthUser } from "@/contexts/AuthContext";
 
-type Channel = "sms" | "whatsapp";
 type Mode = "phone" | "email";
 
 export default function LoginScreen() {
@@ -26,7 +25,6 @@ export default function LoginScreen() {
   const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
   const [showPicker, setShowPicker] = useState(false);
   const [phone, setPhone] = useState("");
-  const [channel, setChannel] = useState<Channel>("whatsapp");
   const [error, setError] = useState("");
   const sendOtp = useSendOtp();
 
@@ -93,12 +91,12 @@ export default function LoginScreen() {
       return;
     }
     setError("");
-    sendOtp.mutate({ data: { phone: fullPhone, channel } as any }, {
+    sendOtp.mutate({ data: { phone: fullPhone, channel: "whatsapp" } as any }, {
       onSuccess: (res) => {
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.push({
           pathname: "/(auth)/otp",
-          params: { phone: fullPhone, demoOtp: (res as any).demoOtp ?? "", channel },
+          params: { phone: fullPhone, demoOtp: (res as any).demoOtp ?? "", channel: "whatsapp" },
         });
       },
       onError: (err: any) => {
@@ -249,44 +247,12 @@ export default function LoginScreen() {
             </View>
           ) : (
           <>
-          {/* Channel selector */}
-          <Text style={[styles.label, { color: colors.foreground }]}>{t("login_channel_label")}</Text>
-          <View style={[styles.channelRow, { backgroundColor: colors.muted, borderRadius: 14 }]}>
-            <TouchableOpacity
-              style={[
-                styles.channelBtn,
-                channel === "whatsapp" && { backgroundColor: colors.card, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 },
-              ]}
-              onPress={() => setChannel("whatsapp")}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name="logo-whatsapp"
-                size={20}
-                color={channel === "whatsapp" ? "#25D366" : colors.mutedForeground}
-              />
-              <Text style={[styles.channelLabel, { color: channel === "whatsapp" ? colors.foreground : colors.mutedForeground }]}>
-                WhatsApp
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.channelBtn,
-                channel === "sms" && { backgroundColor: colors.card, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 },
-              ]}
-              onPress={() => setChannel("sms")}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name="chatbubble-ellipses-outline"
-                size={20}
-                color={channel === "sms" ? colors.primary : colors.mutedForeground}
-              />
-              <Text style={[styles.channelLabel, { color: channel === "sms" ? colors.foreground : colors.mutedForeground }]}>
-                SMS
-              </Text>
-            </TouchableOpacity>
+          {/* WhatsApp badge */}
+          <View style={[styles.whatsappBadge, { backgroundColor: "#25D36618" }]}>
+            <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
+            <Text style={[styles.whatsappBadgeText, { color: "#1A9E50" }]}>
+              Code de vérification envoyé par WhatsApp
+            </Text>
           </View>
 
           {/* Phone number */}
@@ -317,7 +283,7 @@ export default function LoginScreen() {
           {error ? <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text> : null}
 
           <TouchableOpacity
-            style={[styles.btn, { backgroundColor: channel === "whatsapp" ? "#25D366" : colors.primary, opacity: sendOtp.isPending ? 0.7 : 1 }]}
+            style={[styles.btn, { backgroundColor: "#25D366", opacity: sendOtp.isPending ? 0.7 : 1 }]}
             onPress={handleContinue}
             disabled={sendOtp.isPending}
             activeOpacity={0.8}
@@ -326,14 +292,8 @@ export default function LoginScreen() {
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Ionicons
-                  name={channel === "whatsapp" ? "logo-whatsapp" : "chatbubble-ellipses-outline"}
-                  size={20}
-                  color="#fff"
-                />
-                <Text style={styles.btnText}>
-                  {channel === "whatsapp" ? t("login_send_whatsapp") : t("login_send_sms")}
-                </Text>
+                <Ionicons name="logo-whatsapp" size={20} color="#fff" />
+                <Text style={styles.btnText}>{t("login_send_whatsapp")}</Text>
                 <Ionicons name="arrow-forward" size={20} color="#fff" />
               </>
             )}
@@ -344,7 +304,7 @@ export default function LoginScreen() {
 
         {mode === "phone" && (
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-            {channel === "whatsapp" ? t("login_hint_whatsapp") : t("login_hint_sms")}
+            {t("login_hint_whatsapp")}
           </Text>
         )}
       </ScrollView>
@@ -392,22 +352,16 @@ const styles = StyleSheet.create({
   modeRow: { flexDirection: "row", padding: 4, gap: 4, marginBottom: 6 },
   modeBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 11, borderRadius: 11 },
   modeLabel: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  channelRow: {
-    flexDirection: "row",
-    padding: 4,
-    gap: 4,
-  },
-  channelBtn: {
-    flex: 1,
+  whatsappBadge: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 11,
+    gap: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
   },
-  channelLabel: {
-    fontSize: 15,
+  whatsappBadgeText: {
+    fontSize: 13,
     fontFamily: "Inter_600SemiBold",
   },
   inputRow: {

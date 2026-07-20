@@ -609,11 +609,13 @@ router.get("/auth/otp-diagnostic", async (_req, res): Promise<void> => {
   // ── Resend ──────────────────────────────────────────────────────────────────
   try {
     const resendApiKey = process.env.RESEND_API_KEY;
-    const resendFrom = process.env.RESEND_FROM_EMAIL;
+    // RESEND_EMAIL_FROM accepted as alias for RESEND_FROM_EMAIL.
+    const resendFrom = process.env.RESEND_FROM_EMAIL || process.env.RESEND_EMAIL_FROM;
 
     const resendConfig = {
       RESEND_API_KEY: resendApiKey ? `${resendApiKey.slice(0, 6)}...****` : "NOT SET",
       RESEND_FROM_EMAIL: resendFrom || "NOT SET",
+      _from_alias: process.env.RESEND_FROM_EMAIL ? "RESEND_FROM_EMAIL" : process.env.RESEND_EMAIL_FROM ? "RESEND_EMAIL_FROM (alias)" : "none",
     };
 
     // Test by fetching Resend account info

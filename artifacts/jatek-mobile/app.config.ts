@@ -4,6 +4,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const slug = process.env.EXPO_SLUG ?? "jatek-mobile";
   const owner = process.env.EXPO_OWNER ?? "myjantesmob";
   const projectId =
+    process.env.EXPO_PUBLIC_PROJECT_ID ??
     process.env.DEFAULT_PROJECT_ID ??
     "2437ecfc-9682-4b07-9eaa-77f6206b4714";
 
