@@ -5,8 +5,27 @@
       "developmentClient": true,
       "distribution": "internal"
     },
-    "preview": { "distribution": "internal" },
-    "production": {}
+    "preview": {
+      "distribution": "internal",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "ma.jatek.app",
+        "EXPO_PUBLIC_PROJECT_ID": "135003c2-4828-403d-8176-068364215286"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "ma.jatek.app",
+        "EXPO_PUBLIC_PROJECT_ID": "135003c2-4828-403d-8176-068364215286"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
   },
   "submit": { "production": {} }
 }

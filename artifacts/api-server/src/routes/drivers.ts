@@ -31,6 +31,52 @@ router.get("/drivers", requireAuth, async (req: AuthedRequest, res): Promise<voi
   res.json(drivers);
 });
 
+/**
+ * GET /api/drivers/by-order/:orderId
+ * Returns the location of the driver assigned to a given order.
+ * Used by the live tracking screen in the driver app and customer app.
+ * MUST be registered before /drivers/:id to avoid param-capture.
+ */
+router.get("/drivers/by-order/:orderId", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
+  const orderId = parseInt(String(req.params.orderId), 10);
+  if (isNaN(orderId)) {
+    res.status(400).json({ error: "Invalid orderId" });
+    return;
+  }
+
+  const [order] = await db
+    .select({ driverId: ordersTable.driverId })
+    .from(ordersTable)
+    .where(eq(ordersTable.id, orderId))
+    .limit(1);
+
+  if (!order || !order.driverId) {
+    res.json({ latitude: null, longitude: null, lastSeenAt: null });
+    return;
+  }
+
+  const [driver] = await db
+    .select({
+      latitude: driversTable.latitude,
+      longitude: driversTable.longitude,
+      locationUpdatedAt: driversTable.locationUpdatedAt,
+    })
+    .from(driversTable)
+    .where(eq(driversTable.id, order.driverId))
+    .limit(1);
+
+  if (!driver) {
+    res.json({ latitude: null, longitude: null, lastSeenAt: null });
+    return;
+  }
+
+  res.json({
+    latitude: driver.latitude,
+    longitude: driver.longitude,
+    lastSeenAt: driver.locationUpdatedAt?.toISOString() ?? null,
+  });
+});
+
 router.get("/drivers/:id", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const params = GetDriverParams.safeParse(req.params);
   if (!params.success) {

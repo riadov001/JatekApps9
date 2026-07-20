@@ -25,6 +25,7 @@ import promoCodesRouter from "./promoCodes";
 import chatRouter from "./chat";
 import notificationsRouter from "./notifications";
 import referralsRouter from "./referrals";
+import promotionsRouter from "./promotions";
 import { subscribe } from "../lib/sse";
 import { requireAuth, type AuthedRequest } from "../middlewares/auth";
 import { db, ordersTable, driversTable, restaurantsTable } from "@workspace/db";
@@ -61,6 +62,7 @@ router.use(promoCodesRouter);
 router.use(chatRouter);
 router.use(notificationsRouter);
 router.use(referralsRouter);
+router.use(promotionsRouter);
 
 /**
  * SSE endpoint — clients subscribe to one or more channels:
