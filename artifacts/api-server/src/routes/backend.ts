@@ -836,7 +836,9 @@ router.post("/backend/drivers", requireAuth, async (req: AuthedRequest, res): Pr
 
   // Generate a random 10-char temporary password (letters + digits, no ambiguous chars)
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  const tempPassword = Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  const randomBytes = new Uint32Array(10);
+  crypto.getRandomValues(randomBytes);
+  const tempPassword = Array.from(randomBytes, (v) => chars[v % chars.length]).join("");
   const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
   try {

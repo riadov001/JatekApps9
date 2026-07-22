@@ -17,7 +17,7 @@ import {
   promoCodeUsagesTable,
   referralsTable,
 } from "@workspace/db";
-import { eq, and, inArray, isNull } from "drizzle-orm";
+import { eq, and, inArray, isNull, sql } from "drizzle-orm";
 import { requireAuth, attachAuth, type AuthedRequest } from "../middlewares/auth";
 import {
   CreateOrderBody,
@@ -371,11 +371,6 @@ router.post("/orders", requireAuth, async (req: AuthedRequest, res, next): Promi
       }
       discountAmount = Math.round(discountAmount * 100) / 100;
       appliedPromoId = promo.id;
-
-      // Increment usage count
-      await db.update(promoCodesTable)
-        .set({ usedCount: promo.usedCount + 1 })
-        .where(eq(promoCodesTable.id, promo.id));
     }
   }
 
@@ -422,7 +417,8 @@ router.post("/orders", requireAuth, async (req: AuthedRequest, res, next): Promi
     await db.update(ordersTable).set({ notes: updatedNotes }).where(eq(ordersTable.id, order.id));
   }
 
-  // Record promo code usage
+  // Record promo code usage and increment counter — done after order insert so a
+  // failed insert doesn't leave a phantom usage increment.
   if (appliedPromoId) {
     await db.insert(promoCodeUsagesTable).values({
       promoCodeId: appliedPromoId,
@@ -430,6 +426,9 @@ router.post("/orders", requireAuth, async (req: AuthedRequest, res, next): Promi
       orderId: order.id,
       discountAmount,
     });
+    await db.update(promoCodesTable)
+      .set({ usedCount: sql`${promoCodesTable.usedCount} + 1` })
+      .where(eq(promoCodesTable.id, appliedPromoId));
   }
 
   // Award loyalty points (based on amount paid after discount)

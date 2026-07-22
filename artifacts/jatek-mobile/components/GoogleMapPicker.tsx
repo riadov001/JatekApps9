@@ -252,6 +252,18 @@ export function GoogleMapPicker({
     }
   }, [latitude, longitude]);
 
+  // Sync prop changes to the native WebView via injectJavaScript
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    if (latitude == null || longitude == null) return;
+    const js = `try{
+      var pos={lat:${latitude},lng:${longitude}};
+      if(window.__map&&window.__map.panTo){window.__map.panTo(pos);}
+      else if(typeof map!=='undefined'&&map&&map.panTo){map.panTo([pos.lat,pos.lng]);}
+    }catch(e){}true;`;
+    webRef.current?.injectJavaScript(js);
+  }, [latitude, longitude]);
+
   if (Platform.OS === "web") {
     return (
       <View style={[styles.wrap, { height: height as any }]}>

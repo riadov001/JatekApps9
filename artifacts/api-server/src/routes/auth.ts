@@ -252,7 +252,7 @@ router.post("/auth/verify-otp", async (req, res): Promise<void> => {
     // OTP-created accounts are always customers — elevated roles must be assigned via the admin panel.
     const userRole = "customer";
     const placeholderEmail = `sms_${normalizedPhone.replace(/[^0-9]/g, "")}@jatek.local`;
-    const dummyPassword = await bcrypt.hash(Math.random().toString(36), 10);
+    const dummyPassword = await bcrypt.hash(crypto.randomUUID(), 10);
 
     const [newUser] = await db.insert(usersTable).values({
       name: userName, email: placeholderEmail, password: dummyPassword,
