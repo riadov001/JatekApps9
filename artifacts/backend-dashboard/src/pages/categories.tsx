@@ -33,13 +33,23 @@ type SubCat = {
 };
 type Cat = SubCat & { subCategories: SubCat[] };
 
-const EMPTY = { name: "", icon: "storefront", accentColor: "#E91E63", sortOrder: "0", isActive: true };
+const BUSINESS_TYPES = [
+  { value: "restaurant", label: "Restauration" },
+  { value: "grocery",    label: "Épicerie" },
+  { value: "pharmacy",   label: "Santé / Pharmacie" },
+  { value: "supermarket",label: "Supermarché" },
+  { value: "shop",       label: "Boutique" },
+  { value: "services",   label: "Services / Coursier" },
+];
+
+const EMPTY = { name: "", icon: "storefront", accentColor: "#E91E63", sortOrder: "0", isActive: true, businessType: "restaurant" };
 
 function CategoryForm({
-  value, onChange,
+  value, onChange, isSubcat = false,
 }: {
   value: typeof EMPTY;
   onChange: (v: typeof EMPTY) => void;
+  isSubcat?: boolean;
 }) {
   const set = (k: keyof typeof EMPTY) => (e: any) =>
     onChange({ ...value, [k]: e.target?.value ?? e });
@@ -49,6 +59,21 @@ function CategoryForm({
         <Label className="text-xs">Nom *</Label>
         <Input value={value.name} onChange={set("name")} placeholder="Ex: Pizza, Burger…" required autoFocus />
       </div>
+      {/* businessType — only relevant for parent categories */}
+      {!isSubcat && (
+        <div className="space-y-1">
+          <Label className="text-xs">Type de commerce</Label>
+          <select
+            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+            value={value.businessType}
+            onChange={(e) => onChange({ ...value, businessType: e.target.value })}
+          >
+            {BUSINESS_TYPES.map((bt) => (
+              <option key={bt.value} value={bt.value}>{bt.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Icône (Material name)</Label>
@@ -116,6 +141,7 @@ export default function Categories() {
           accentColor: createForm.accentColor,
           sortOrder: Number(createForm.sortOrder) || 0,
           isActive: createForm.isActive,
+          businessType: createForm.businessType || "restaurant",
           parentId: parentId ?? null,
         }),
       }),
@@ -139,6 +165,7 @@ export default function Categories() {
           accentColor: editForm.accentColor,
           sortOrder: Number(editForm.sortOrder) || 0,
           isActive: editForm.isActive,
+          businessType: editForm.businessType || "restaurant",
         }),
       }),
     onSuccess: () => { invalidate(); setEditing(null); toast({ title: "Catégorie modifiée" }); },
@@ -165,6 +192,7 @@ export default function Categories() {
       accentColor: cat.accentColor,
       sortOrder: String(cat.sortOrder),
       isActive: cat.isActive,
+      businessType: (cat as any).businessType ?? "restaurant",
     });
     setEditing(cat);
   };
@@ -383,7 +411,7 @@ export default function Categories() {
               if (createForm.name.trim()) createMutation.mutate(createSubFor?.id);
             }}
           >
-            <CategoryForm value={createForm} onChange={setCreateForm} />
+            <CategoryForm value={createForm} onChange={setCreateForm} isSubcat={!!createSubFor} />
             <DialogFooter className="mt-6">
               <Button
                 type="button" variant="outline"
@@ -410,7 +438,7 @@ export default function Categories() {
             <form
               onSubmit={(e) => { e.preventDefault(); updateMutation.mutate(editing.id); }}
             >
-              <CategoryForm value={editForm} onChange={setEditForm} />
+              <CategoryForm value={editForm} onChange={setEditForm} isSubcat={!(editing as any)?.subCategories} />
               <DialogFooter className="mt-6">
                 <Button type="button" variant="outline" onClick={() => setEditing(null)}>
                   Annuler

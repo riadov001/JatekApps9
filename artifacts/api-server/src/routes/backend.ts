@@ -980,6 +980,7 @@ router.get("/backend/categories", requireAuth, async (req: AuthedRequest, res): 
     slug: c.slug,
     icon: c.icon,
     accentColor: c.accentColor,
+    businessType: (c as any).businessType ?? "restaurant",
     isActive: c.isActive,
     sortOrder: c.sortOrder,
     parentId: (c as any).parentId ?? null,
@@ -1002,7 +1003,7 @@ router.get("/backend/categories", requireAuth, async (req: AuthedRequest, res): 
 
 /**
  * POST /backend/categories
- * Creates a parent or child category. Accepts: name, icon, accentColor, sortOrder, isActive, parentId.
+ * Creates a parent or child category. Accepts: name, icon, accentColor, sortOrder, isActive, parentId, businessType.
  */
 router.post("/backend/categories", requireAuth, async (req: AuthedRequest, res): Promise<void> => {
   const ctx = await requireBackendUser(req, res);
@@ -1015,6 +1016,7 @@ router.post("/backend/categories", requireAuth, async (req: AuthedRequest, res):
   const sortOrder = Number(req.body?.sortOrder ?? 0);
   const isActive = req.body?.isActive !== false;
   const parentId = req.body?.parentId ? Number(req.body.parentId) : null;
+  const businessType = String(req.body?.businessType || "restaurant").trim();
 
   if (!name) { res.status(400).json({ error: "Name required" }); return; }
 
@@ -1023,12 +1025,12 @@ router.post("/backend/categories", requireAuth, async (req: AuthedRequest, res):
   try {
     const [cat] = await db
       .insert(categoriesTable)
-      .values({ name, slug, icon, accentColor, sortOrder, isActive, ...(parentId ? { parentId } : {}) } as any)
+      .values({ name, slug, icon, accentColor, sortOrder, isActive, businessType, ...(parentId ? { parentId } : {}) } as any)
       .returning();
     res.status(201).json({
       id: cat.id, name: cat.name, slug: cat.slug, icon: cat.icon,
-      accentColor: cat.accentColor, isActive: cat.isActive,
-      sortOrder: cat.sortOrder, parentId: (cat as any).parentId ?? null, count: 0,
+      accentColor: cat.accentColor, businessType: (cat as any).businessType ?? "restaurant",
+      isActive: cat.isActive, sortOrder: cat.sortOrder, parentId: (cat as any).parentId ?? null, count: 0,
       subCategories: [],
     });
   } catch (e: any) {
@@ -1057,12 +1059,13 @@ router.patch("/backend/categories/:id", requireAuth, async (req: AuthedRequest, 
   const accentColor = String(req.body?.accentColor ?? existing.accentColor);
   const sortOrder = req.body?.sortOrder !== undefined ? Number(req.body.sortOrder) : existing.sortOrder;
   const isActive = req.body?.isActive !== undefined ? Boolean(req.body.isActive) : existing.isActive;
+  const businessType = req.body?.businessType !== undefined ? String(req.body.businessType) : (existing as any).businessType ?? "restaurant";
   const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
   try {
     const [updated] = await db
       .update(categoriesTable)
-      .set({ name, slug, icon, accentColor, sortOrder, isActive } as any)
+      .set({ name, slug, icon, accentColor, sortOrder, isActive, businessType } as any)
       .where(eq(categoriesTable.id, id))
       .returning();
 
@@ -1073,8 +1076,8 @@ router.patch("/backend/categories/:id", requireAuth, async (req: AuthedRequest, 
 
     res.json({
       id: updated.id, name: updated.name, slug: updated.slug, icon: updated.icon,
-      accentColor: updated.accentColor, isActive: updated.isActive,
-      sortOrder: updated.sortOrder, parentId: (updated as any).parentId ?? null,
+      accentColor: updated.accentColor, businessType: (updated as any).businessType ?? "restaurant",
+      isActive: updated.isActive, sortOrder: updated.sortOrder, parentId: (updated as any).parentId ?? null,
     });
   } catch (e: any) {
     if (e.code === "23505") { res.status(409).json({ error: "Ce nom de catégorie existe déjà" }); return; }
