@@ -8,6 +8,10 @@
       "developmentClient": true,
       "distribution": "internal",
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_PROJECT_ID": "2437ecfc-9682-4b07-9eaa-77f6206b4714",
+        "EXPO_PUBLIC_DOMAIN": "ma.jatek.app"
+      },
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleDebug"
@@ -29,9 +33,9 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
+      "credentialsSource": "remote",
       "env": {
         "EXPO_PUBLIC_DOMAIN": "ma.jatek.app",
-        "EXPO_PUBLIC_API_URL": "https://ma.jatek.app",
         "EXPO_PUBLIC_PROJECT_ID": "2437ecfc-9682-4b07-9eaa-77f6206b4714"
       },
       "android": {
