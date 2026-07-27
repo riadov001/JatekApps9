@@ -8,6 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "autoIncrement": true,
+      "credentialsSource": "remote",
       "env": {
         "EXPO_PUBLIC_PROJECT_ID": "2437ecfc-9682-4b07-9eaa-77f6206b4714",
         "EXPO_PUBLIC_DOMAIN": "ma.jatek.app"
@@ -36,6 +37,7 @@
       "credentialsSource": "remote",
       "env": {
         "EXPO_PUBLIC_DOMAIN": "ma.jatek.app",
+        "EXPO_PUBLIC_API_URL": "https://ma.jatek.app",
         "EXPO_PUBLIC_PROJECT_ID": "2437ecfc-9682-4b07-9eaa-77f6206b4714"
       },
       "android": {

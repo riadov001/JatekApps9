@@ -53,7 +53,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     plugins: [
       "expo-router",
-      "expo-web-browser",
+      "expo-updates",
       [
         "expo-location",
         {
@@ -70,6 +70,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         },
       ],
     ],
+    updates: {
+      url: `https://u.expo.dev/${projectId}`,
+    },
+    runtimeVersion: {
+      policy: "appVersion",
+    },
     experiments: {
       typedRoutes: true,
     },
@@ -77,7 +83,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       eas: {
         projectId,
       },
-      projectId,
     },
   };
 };

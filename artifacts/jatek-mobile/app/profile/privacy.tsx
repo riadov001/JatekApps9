@@ -12,7 +12,7 @@ import {
   rejectAllConsents,
   exportMyDataUrl,
   deleteMyAccount,
-  apiBase,
+  getApiBase,
   type UserConsents,
 } from "@/lib/api";
 
@@ -91,7 +91,7 @@ export default function PrivacyScreen() {
       } else {
         await Share.share({ message: text, title: "Mes données Jatek" });
       }
-    } catch { Alert.alert("Erreur", `Téléchargement impossible (${apiBase}/api/me/export)`); }
+    } catch { Alert.alert("Erreur", `Téléchargement impossible (${getApiBase()}/api/me/export)`); }
   };
 
   const onDelete = () => {

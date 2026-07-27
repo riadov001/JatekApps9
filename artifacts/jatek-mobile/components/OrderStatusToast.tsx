@@ -17,7 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useT } from "@/contexts/LanguageContext";
-import { apiBase } from "@/lib/api";
+import { getApiBase } from "@/lib/api";
 import { useSSE } from "@/hooks/useSSE";
 
 interface ToastData {
@@ -98,7 +98,7 @@ export function OrderStatusToast() {
   }, [pathname, showToast]);
 
   useSSE({
-    url: `${apiBase}/api/events?channels=user:${userId}&token=${encodeURIComponent(token ?? "")}`,
+    url: `${getApiBase()}/api/events?channels=user:${userId}&token=${encodeURIComponent(token ?? "")}`,
     enabled: !!userId && !!token && Platform.OS !== "web",
     events: {
       order_status: handleStatusEvent,
@@ -107,7 +107,7 @@ export function OrderStatusToast() {
 
   useEffect(() => {
     if (Platform.OS !== "web" || !userId || !token) return;
-    const url = `${apiBase}/api/events?channels=user:${userId}&token=${encodeURIComponent(token)}`;
+    const url = `${getApiBase()}/api/events?channels=user:${userId}&token=${encodeURIComponent(token)}`;
     const es = new EventSource(url);
     es.addEventListener("order_status", (e) => {
       try { handleStatusEvent(JSON.parse((e as MessageEvent).data)); } catch {}

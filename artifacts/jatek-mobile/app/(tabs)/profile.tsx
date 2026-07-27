@@ -7,7 +7,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { apiBase } from "@/lib/api";
+import { getApiBase } from "@/lib/api";
 import { WaveEdge } from "@/components/WaveEdge";
 import { useCart } from "@/contexts/CartContext";
 import { AddressQuickPicker } from "@/components/AddressQuickPicker";
@@ -79,7 +79,7 @@ export default function ProfileScreen() {
     if (!token) return;
     setDeleting(true);
     try {
-      const res = await fetch(`${apiBase}/api/auth/me`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${getApiBase()}/api/auth/me`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         setDeleteModal(false);
         await logout();

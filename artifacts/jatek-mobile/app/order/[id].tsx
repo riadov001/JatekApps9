@@ -29,7 +29,7 @@ import { useColors } from "@/hooks/useColors";
 import { useSSE } from "@/hooks/useSSE";
 import { scheduleOrderStatusNotification } from "@/hooks/usePushNotifications";
 import { DriverMap } from "@/components/DriverMap";
-import { apiBase, geocodeAddress, getDriverLocation, getRestaurant, getAuthToken } from "@/lib/api";
+import { getApiBase, geocodeAddress, getDriverLocation, getRestaurant, getAuthToken } from "@/lib/api";
 import { useT, useLang } from "@/contexts/LanguageContext";
 import type { TKey } from "@/lib/translations";
 
@@ -155,8 +155,8 @@ export default function OrderDetailScreen() {
   // SSE: order status + driver location
   useSSE({
     url: sseToken
-      ? `${apiBase}/api/events?channels=order:${orderId}&token=${encodeURIComponent(sseToken)}`
-      : `${apiBase}/api/events?channels=order:${orderId}`,
+      ? `${getApiBase()}/api/events?channels=order:${orderId}&token=${encodeURIComponent(sseToken)}`
+      : `${getApiBase()}/api/events?channels=order:${orderId}`,
     enabled: !!orderId && !!sseToken,
     events: {
       order_status: () => {
@@ -479,8 +479,8 @@ export default function OrderDetailScreen() {
             onPress={async () => {
               const tok = await getAuthToken();
               const url = tok
-                ? `${apiBase}/api/orders/${order.id}/invoice?token=${encodeURIComponent(tok)}`
-                : `${apiBase}/api/orders/${order.id}/invoice`;
+                ? `${getApiBase()}/api/orders/${order.id}/invoice?token=${encodeURIComponent(tok)}`
+                : `${getApiBase()}/api/orders/${order.id}/invoice`;
               Linking.openURL(url);
             }}
           >

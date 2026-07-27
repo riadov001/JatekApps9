@@ -40,7 +40,7 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSSE } from "@/hooks/useSSE";
 import {
-  apiBase,
+  getApiBase,
   fetchAvailableOrders,
   acceptDelivery,
   confirmDelivery,
@@ -121,7 +121,7 @@ export default function DeliverScreen() {
 
   // SSE: listen for new ready orders + assignments to this driver
   useSSE({
-    url: `${apiBase}/api/events?channels=available_orders${myDriver ? `,driver_orders:${myDriver.id}` : ""}`,
+    url: `${getApiBase()}/api/events?channels=available_orders${myDriver ? `,driver_orders:${myDriver.id}` : ""}`,
     enabled: isOnline && !!myDriver,
     events: {
       order_ready: () => {

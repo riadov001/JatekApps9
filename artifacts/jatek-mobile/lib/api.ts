@@ -6,7 +6,19 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import { getApiBaseSafe } from "./apiBase";
 
-const API_BASE = getApiBaseSafe();
+// Lazy: resolved on the first actual request so Expo Go dev mode has time
+// to populate Constants.expoConfig before any fetch fires.
+// Only caches a successful (non-placeholder) result so that a later request
+// can retry if the first attempt raced ahead of manifest hydration.
+const PLACEHOLDER = "https://missing-domain.invalid";
+let _apiBase: string | null = null;
+function resolvedApiBase(): string {
+  if (_apiBase && _apiBase !== PLACEHOLDER) return _apiBase;
+  const base = getApiBaseSafe();
+  if (base !== PLACEHOLDER) _apiBase = base;
+  return base;
+}
+
 const TOKEN_KEY = "jatek_jwt";
 
 async function getToken(): Promise<string | null> {
@@ -37,7 +49,7 @@ async function jsonFetch<T = any>(path: string, init?: RequestInit & { timeoutMs
   }
 
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
+    const res = await fetch(`${resolvedApiBase()}${path}`, {
       ...rest,
       signal: controller.signal,
       headers: {
@@ -71,7 +83,8 @@ async function jsonFetch<T = any>(path: string, init?: RequestInit & { timeoutMs
   }
 }
 
-export const apiBase = API_BASE;
+/** Lazily-resolved API base URL — call at request time, not at import time. */
+export function getApiBase(): string { return resolvedApiBase(); }
 
 // Drivers ------------------------------------------------------------
 export async function fetchAvailableOrders(): Promise<any[]> {
@@ -321,5 +334,5 @@ export async function acceptAllConsents(): Promise<UserConsents> {
 export async function rejectAllConsents(): Promise<UserConsents> {
   return jsonFetch("/api/consents/reject-all", { method: "POST", body: JSON.stringify({}) });
 }
-export function exportMyDataUrl(): string { return `${API_BASE}/api/me/export`; }
+export function exportMyDataUrl(): string { return `${resolvedApiBase()}/api/me/export`; }
 export async function deleteMyAccount(): Promise<void> { await jsonFetch("/api/me", { method: "DELETE" }); }

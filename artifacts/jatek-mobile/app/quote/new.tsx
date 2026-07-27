@@ -11,7 +11,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useT } from "@/contexts/LanguageContext";
-import { apiBase } from "@/lib/api";
+import { getApiBase } from "@/lib/api";
 
 export default function NewQuoteScreen() {
   const colors = useColors();
@@ -36,7 +36,7 @@ export default function NewQuoteScreen() {
     if (subject.trim().length < 2 || description.trim().length < 2) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`${apiBase}/api/quotes`, {
+      const res = await fetch(`${getApiBase()}/api/quotes`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ restaurantId: rid, subject: subject.trim(), description: description.trim() }),
