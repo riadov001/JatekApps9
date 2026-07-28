@@ -89,4 +89,4 @@ INFOBIP_WA_SENDER = "+44 7860 088970"
 ALLOWED_ORIGINS = "https://c242aedf-c2ef-40b5-8095-e3992aa34a14-00-1y412fgtbqgy8.kirk.replit.dev,https://ma.jatek.app"
 
   [objectStorage]
-defaultBucketID = "replit-objstore-8704654f-aa76-44a5-b41a-a7756da5392c"
+defaultBucketID = "replit-objstore-b5c29047-f4b3-4a45-b019-411ecc254f0f"
