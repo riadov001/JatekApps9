@@ -1,6 +1,5 @@
-import { ExpoConfig, ConfigContext } from "expo/config";
-
-export default ({ config }: ConfigContext): ExpoConfig => {
+/** @type {import('expo/config').ConfigContext} */
+module.exports = ({ config }) => {
   const slug = process.env.EXPO_SLUG ?? "jatek-mobile";
   const owner = process.env.EXPO_OWNER ?? "myjantes";
   const projectId =
@@ -38,7 +37,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     android: {
       package: "ma.jatek.app",
-      versionCode: 10,
+      versionCode: 11,
       permissions: [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
