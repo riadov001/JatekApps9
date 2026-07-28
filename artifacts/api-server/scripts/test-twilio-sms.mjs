@@ -1,106 +1,52 @@
 /**
- * Test SMS sending via the Replit Twilio connector proxy.
+ * Test SMS sending via Twilio REST API (env vars).
  * Usage: node scripts/test-twilio-sms.mjs [phone_number]
- *
- * The connector proxy injects Twilio auth automatically — no env vars needed.
  */
-
-import { ReplitConnectors } from "@replit/connectors-sdk";
 
 const TO_NUMBER = process.argv[2] || "+212666711202";
 
-async function main() {
-  const connectors = new ReplitConnectors();
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken  = process.env.TWILIO_AUTH_TOKEN;
+const fromNumber = process.env.TWILIO_FROM_NUMBER;
 
-  // Step 1: get account info (to discover the Account SID)
-  console.log("📡 Fetching Twilio account info via proxy...");
-  const accountsRes = await connectors.proxy("twilio", "/2010-04-01/Accounts.json", {
-    method: "GET",
-  });
+if (!accountSid) { console.error("❌ TWILIO_ACCOUNT_SID not set"); process.exit(1); }
+if (!authToken)  { console.error("❌ TWILIO_AUTH_TOKEN not set");  process.exit(1); }
+if (!fromNumber) { console.error("❌ TWILIO_FROM_NUMBER not set"); process.exit(1); }
 
-  if (!accountsRes.ok) {
-    const err = await accountsRes.text();
-    console.error(`❌ Failed to fetch accounts: ${accountsRes.status} ${err.slice(0, 400)}`);
-    process.exit(1);
+console.log(`📡 Account SID : ${accountSid.slice(0, 6)}...`);
+console.log(`📞 From        : ${fromNumber}`);
+console.log(`📱 To          : ${TO_NUMBER}`);
+
+const body = new URLSearchParams({
+  To:   TO_NUMBER,
+  From: fromNumber,
+  Body: "Test Jatek OTP : 123456 (ceci est un message de test)",
+});
+
+const res = await fetch(
+  `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
+    },
+    body: body.toString(),
   }
+);
 
-  const accountsData = await accountsRes.json();
-  const account = accountsData?.accounts?.[0];
-  if (!account) {
-    console.error("❌ No accounts found in response:", JSON.stringify(accountsData, null, 2));
-    process.exit(1);
-  }
+const data = await res.json();
 
-  const accountSid = account.sid;
-  const friendlyName = account.friendly_name;
-  console.log(`✅ Account: ${friendlyName} (${accountSid})`);
-
-  // Step 2: list phone numbers to find the sender
-  console.log("\n📞 Fetching incoming phone numbers...");
-  const numbersRes = await connectors.proxy(
-    "twilio",
-    `/2010-04-01/Accounts/${accountSid}/IncomingPhoneNumbers.json`,
-    { method: "GET" }
-  );
-
-  let fromNumber = null;
-  if (numbersRes.ok) {
-    const numbersData = await numbersRes.json();
-    const numbers = numbersData?.incoming_phone_numbers || [];
-    if (numbers.length > 0) {
-      fromNumber = numbers[0].phone_number;
-      console.log(`✅ Found sender number: ${fromNumber}`);
-      console.log(
-        `   All numbers: ${numbers.map((n) => n.phone_number).join(", ")}`
-      );
-    } else {
-      console.warn("⚠️  No incoming phone numbers found on this account");
-    }
-  } else {
-    console.warn("⚠️  Could not list phone numbers:", numbersRes.status);
-  }
-
-  if (!fromNumber) {
-    console.error(
-      "❌ Cannot send SMS without a 'from' number. Add a Twilio phone number or set TWILIO_FROM_NUMBER."
-    );
-    process.exit(1);
-  }
-
-  // Step 3: send the test SMS
-  console.log(`\n✉️  Sending test SMS from ${fromNumber} to ${TO_NUMBER}...`);
-  const body = new URLSearchParams({
-    To: TO_NUMBER,
-    From: fromNumber,
-    Body: "Test Jatek OTP: 123456 (ceci est un message de test)",
-  });
-
-  const sendRes = await connectors.proxy(
-    "twilio",
-    `/2010-04-01/Accounts/${accountSid}/Messages.json`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: body.toString(),
-    }
-  );
-
-  const sendData = await sendRes.json();
-
-  if (!sendRes.ok) {
-    console.error(`❌ SMS send failed: ${sendRes.status}`);
-    console.error(JSON.stringify(sendData, null, 2));
-    process.exit(1);
-  }
-
-  console.log(`✅ SMS sent successfully!`);
-  console.log(`   SID: ${sendData.sid}`);
-  console.log(`   Status: ${sendData.status}`);
-  console.log(`   To: ${sendData.to}`);
-  console.log(`   From: ${sendData.from}`);
+if (!res.ok) {
+  console.error(`\n❌ Envoi échoué (${res.status})`);
+  console.error(`   Code  : ${data.code}`);
+  console.error(`   Msg   : ${data.message}`);
+  console.error(`   More  : ${data.more_info}`);
+  process.exit(1);
 }
 
-main().catch((err) => {
-  console.error("❌ Unexpected error:", err);
-  process.exit(1);
-});
+console.log(`\n✅ SMS envoyé avec succès !`);
+console.log(`   SID    : ${data.sid}`);
+console.log(`   Status : ${data.status}`);
+console.log(`   To     : ${data.to}`);
+console.log(`   From   : ${data.from}`);

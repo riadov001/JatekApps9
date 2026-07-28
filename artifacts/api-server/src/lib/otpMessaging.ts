@@ -11,8 +11,8 @@
 // Each provider is skipped silently when not configured. The first successful
 // send wins; failures are logged and the chain continues. If every provider
 // fails, throws an aggregated error.
-
-import twilio from "twilio";
+//
+// Twilio calls use the REST API directly (fetch) — no SDK dependency.
 
 export type OtpChannel =
   | "infobip-whatsapp"
@@ -91,162 +91,72 @@ async function sendInfobipWhatsapp(to: string, body: string): Promise<void> {
 }
 
 // ─── Twilio ───────────────────────────────────────────────────────────────────
-// Reads credentials directly from environment secrets.
-// Falls back to the Replit connector as a secondary option.
-// Twilio credentials can come in two flavours:
-//   1. Account SID + Auth Token   → twilio(accountSid, authToken)
-//   2. Account SID + API Key SID + API Key Secret  → twilio(apiKeySid, apiKeySecret, { accountSid })
-//
-// Environment secrets mapping:
+// Direct REST API calls — no SDK dependency.
+// Required env vars:
 //   TWILIO_ACCOUNT_SID  → Account SID (AC...)
-//   TWILIO_AUTH_KEY     → Auth Token OR API Key SID (SK...)
-//   TWILIO_API_KEY_SID  → API Key SID (SK...) — used when TWILIO_AUTH_KEY is actually an API Key
-//   TWILIO_API_KEY_SECRET → API Key Secret
-//   TWILIO_FROM_NUMBER  → Sender number
+//   TWILIO_AUTH_TOKEN   → Auth Token
+//   TWILIO_FROM_NUMBER  → Sender phone number
+// Optional:
+//   TWILIO_WA_FROM              → WhatsApp sender (default: Twilio sandbox +14155238886)
+//   TWILIO_MESSAGING_SERVICE_SID → Messaging Service SID (overrides FROM number for SMS)
 
-interface TwilioCredentials {
-  accountSid: string;
-  authToken?: string;      // set when using Auth Token auth
-  apiKeySid?: string;      // set when using API Key auth
-  apiKeySecret?: string;   // set when using API Key auth
-  phoneNumber: string | undefined;
-  messagingServiceSid: string | undefined;
-  useApiKey: boolean;
+function twilioAuthHeader(): string {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID!;
+  const authToken  = process.env.TWILIO_AUTH_TOKEN!;
+  return "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64");
 }
 
-async function getTwilioCredentials(): Promise<TwilioCredentials> {
+function twilioConfigured(): boolean {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const rawAuthKey = process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_AUTH_KEY;
-  const apiKeySid = process.env.TWILIO_API_KEY_SID;
-  const apiKeySecret = process.env.TWILIO_API_KEY_SECRET;
-  const phoneNumber = process.env.TWILIO_FROM_NUMBER || process.env.TWILIO_PHONE_NUMBER;
-  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
+  const authToken  = process.env.TWILIO_AUTH_TOKEN;
+  return !!(accountSid?.startsWith("AC") && authToken);
+}
 
-  if (!accountSid) {
-    throw new Error("TWILIO_ACCOUNT_SID not set");
-  }
-  if (!accountSid.startsWith("AC")) {
+async function twilioPost(path: string, params: Record<string, string>): Promise<void> {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID!;
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/${path}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: twilioAuthHeader(),
+    },
+    body: new URLSearchParams(params).toString(),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({})) as any;
     throw new Error(
-      `TWILIO_ACCOUNT_SID is invalid — expected "AC..." prefix, got "${accountSid.slice(0, 4)}..."`,
+      `Twilio ${res.status}: ${data?.message ?? res.statusText}` +
+      (data?.code ? ` (code ${data.code})` : "")
     );
-  }
-
-  // If we have a dedicated API Key SID + Secret, prefer that
-  if (apiKeySid && apiKeySecret && apiKeySid.startsWith("SK")) {
-    return {
-      accountSid,
-      apiKeySid,
-      apiKeySecret,
-      phoneNumber,
-      messagingServiceSid,
-      useApiKey: true,
-    };
-  }
-
-  // TWILIO_AUTH_KEY might actually be an API Key SID (SK...) — detect and handle it
-  if (rawAuthKey?.startsWith("SK")) {
-    // rawAuthKey is an API Key SID — we need the secret
-    const secret = apiKeySecret;
-    if (!secret) {
-      throw new Error(
-        "TWILIO_AUTH_KEY looks like an API Key SID (SK...) but TWILIO_API_KEY_SECRET is not set",
-      );
-    }
-    return {
-      accountSid,
-      apiKeySid: rawAuthKey,
-      apiKeySecret: secret,
-      phoneNumber,
-      messagingServiceSid,
-      useApiKey: true,
-    };
-  }
-
-  // Standard Auth Token
-  if (rawAuthKey) {
-    return {
-      accountSid,
-      authToken: rawAuthKey,
-      phoneNumber,
-      messagingServiceSid,
-      useApiKey: false,
-    };
-  }
-
-  throw new Error(
-    "Twilio credentials incomplete — set TWILIO_ACCOUNT_SID + TWILIO_AUTH_KEY (or TWILIO_API_KEY_SID + TWILIO_API_KEY_SECRET)",
-  );
-}
-
-async function getTwilioClient() {
-  const creds = await getTwilioCredentials();
-  if (creds.useApiKey) {
-    // API Key authentication: twilio(apiKeySid, apiKeySecret, { accountSid })
-    return twilio(creds.apiKeySid!, creds.apiKeySecret!, { accountSid: creds.accountSid });
-  }
-  // Auth Token authentication
-  return twilio(creds.accountSid, creds.authToken!);
-}
-
-// When using API Key auth fails, retry with Auth Token if available.
-// This handles the case where TWILIO_API_KEY_SID is set but incorrect,
-// while TWILIO_AUTH_KEY holds the actual working Auth Token.
-async function getTwilioClientWithFallback() {
-  const creds = await getTwilioCredentials();
-  if (!creds.useApiKey) {
-    return twilio(creds.accountSid, creds.authToken!);
-  }
-
-  // Primary: API Key
-  const apiKeyClient = twilio(creds.apiKeySid!, creds.apiKeySecret!, { accountSid: creds.accountSid });
-
-  // Pre-validate by fetching account info — if 401, fall back to Auth Token
-  try {
-    await apiKeyClient.api.v2010.accounts(creds.accountSid).fetch();
-    return apiKeyClient;
-  } catch (e: any) {
-    const isAuthError = e?.status === 401 || e?.code === 20003 || /authenticate/i.test(e?.message ?? "");
-    if (!isAuthError) return apiKeyClient; // non-auth error, let the actual call surface it
-
-    // Try Auth Token fallback
-    const authToken = process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_AUTH_KEY;
-    if (authToken && !authToken.startsWith("SK")) {
-      console.warn("[Twilio] API Key auth failed — retrying with Auth Token");
-      return twilio(creds.accountSid, authToken);
-    }
-    throw e; // no fallback available
-  }
-}
-
-async function twilioConfigured(): Promise<boolean> {
-  try {
-    await getTwilioCredentials();
-    return true;
-  } catch {
-    return false;
   }
 }
 
 async function sendTwilioSms(to: string, body: string): Promise<void> {
-  const client = await getTwilioClientWithFallback();
-  const { phoneNumber, messagingServiceSid } = await getTwilioCredentials();
-  const from = process.env.TWILIO_SMS_FROM || phoneNumber;
-  if (messagingServiceSid) {
-    await client.messages.create({ to, body, messagingServiceSid });
-    return;
+  const from               = process.env.TWILIO_FROM_NUMBER;
+  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
+
+  if (!from && !messagingServiceSid) {
+    throw new Error("Twilio SMS sender not configured (set TWILIO_FROM_NUMBER)");
   }
-  if (!from) throw new Error("Twilio SMS sender not configured (set TWILIO_FROM_NUMBER)");
-  await client.messages.create({ to, from, body });
+
+  const params: Record<string, string> = { To: to, Body: body };
+  if (messagingServiceSid) {
+    params.MessagingServiceSid = messagingServiceSid;
+  } else {
+    params.From = from!;
+  }
+
+  await twilioPost("Messages.json", params);
 }
 
 async function sendTwilioWhatsapp(to: string, body: string): Promise<void> {
-  const client = await getTwilioClientWithFallback();
-  const from = process.env.TWILIO_WA_FROM || "whatsapp:+14155238886";
-  await client.messages.create({
-    to: to.startsWith("whatsapp:") ? to : `whatsapp:${to}`,
-    from: from.startsWith("whatsapp:") ? from : `whatsapp:${from}`,
-    body,
-  });
+  const rawFrom = process.env.TWILIO_WA_FROM || "+14155238886";
+  const from    = rawFrom.startsWith("whatsapp:") ? rawFrom : `whatsapp:${rawFrom}`;
+  const toWa    = to.startsWith("whatsapp:")     ? to       : `whatsapp:${to}`;
+
+  await twilioPost("Messages.json", { To: toWa, From: from, Body: body });
 }
 
 // ─── Resend (email OTP) ───────────────────────────────────────────────────────
