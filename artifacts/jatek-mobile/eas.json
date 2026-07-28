@@ -7,10 +7,9 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "autoIncrement": true,
       "credentialsSource": "remote",
       "env": {
-        "EXPO_PUBLIC_PROJECT_ID": "2437ecfc-9682-4b07-9eaa-77f6206b4714",
+        "EXPO_PUBLIC_PROJECT_ID": "24f32081-ec5b-4040-9694-24e08de7e7c7",
         "EXPO_PUBLIC_DOMAIN": "ma.jatek.app"
       },
       "android": {
@@ -20,25 +19,23 @@
     },
     "preview": {
       "distribution": "internal",
-      "autoIncrement": true,
       "channel": "preview",
       "credentialsSource": "remote",
       "env": {
         "EXPO_PUBLIC_DOMAIN": "ma.jatek.app",
-        "EXPO_PUBLIC_PROJECT_ID": "2437ecfc-9682-4b07-9eaa-77f6206b4714"
+        "EXPO_PUBLIC_PROJECT_ID": "24f32081-ec5b-4040-9694-24e08de7e7c7"
       },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
-      "autoIncrement": true,
       "channel": "production",
       "credentialsSource": "remote",
       "env": {
         "EXPO_PUBLIC_DOMAIN": "ma.jatek.app",
         "EXPO_PUBLIC_API_URL": "https://ma.jatek.app",
-        "EXPO_PUBLIC_PROJECT_ID": "2437ecfc-9682-4b07-9eaa-77f6206b4714"
+        "EXPO_PUBLIC_PROJECT_ID": "24f32081-ec5b-4040-9694-24e08de7e7c7"
       },
       "android": {
         "buildType": "app-bundle"

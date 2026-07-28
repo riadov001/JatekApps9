@@ -82,13 +82,11 @@ VAPID_SUBJECT = "mailto:admin@jatek.ma"
   [userenv.development]
 INFOBIP_WA_SENDER = "+44 7860 088970"
   EXPO_PUBLIC_DOMAIN = "ma.jatek.app"
-EXPO_PUBLIC_PROJECT_ID = "6cb39a90-1863-425b-9f06-f533d73b7d04"
 
   [userenv.production]
 INFOBIP_WA_SENDER = "+44 7860 088970"
   EXPO_PUBLIC_DOMAIN = "ma.jatek.app"
 ALLOWED_ORIGINS = "https://c242aedf-c2ef-40b5-8095-e3992aa34a14-00-1y412fgtbqgy8.kirk.replit.dev,https://ma.jatek.app"
-EXPO_PUBLIC_PROJECT_ID = "6cb39a90-1863-425b-9f06-f533d73b7d04"
 
   [objectStorage]
 defaultBucketID = "replit-objstore-8704654f-aa76-44a5-b41a-a7756da5392c"
