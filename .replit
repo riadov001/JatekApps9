@@ -78,6 +78,7 @@ channel = "stable-25_05"
   [userenv.shared]
 VAPID_PUBLIC_KEY = "BLvX52wA4BwrhPabN3D4gcmgP-FR8mZOOZs9S-fPW9jQ8PUp7xqG8mCfelF9DPBBAdSYBHANTIv1W5LPlxMra_g"
 VAPID_SUBJECT = "mailto:admin@jatek.ma"
+TWILIO_FROM_NUMBER = "+15072600620"
 
   [userenv.development]
 INFOBIP_WA_SENDER = "+44 7860 088970"
