@@ -1,10 +1,10 @@
 // OTP messaging with multi-provider fallback chain.
 //
 // SMS/WhatsApp order:
-//   1. Infobip SMS
-//   2. Twilio SMS        (env secrets: TWILIO_ACCOUNT_SID + TWILIO_AUTH_KEY)
-//   3. Infobip WhatsApp  (fallback)
-//   4. Twilio WhatsApp   (fallback)
+//   1. Twilio WhatsApp   (primary — env: TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_WA_FROM)
+//   2. Twilio SMS        (env: TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_FROM_NUMBER)
+//   3. Infobip WhatsApp  (fallback — env: INFOBIP_API_KEY + INFOBIP_BASE_URL + INFOBIP_WA_SENDER)
+//   4. Infobip SMS       (fallback — env: INFOBIP_API_KEY + INFOBIP_BASE_URL)
 //
 // Email: Resend (RESEND_API_KEY + RESEND_FROM_EMAIL)
 //
@@ -336,27 +336,27 @@ export async function sendOtpMessage(
 
   type Step = { channel: OtpChannel; available: boolean; fn: () => Promise<void> };
   const steps: Step[] = [
-    // ── WhatsApp (preferred) ────────────────────────────────────────────────
+    // ── Twilio (primary) ────────────────────────────────────────────────────
+    {
+      channel: "twilio-whatsapp",
+      available: twilioReady,
+      fn: () => sendTwilioWhatsapp(to, body),
+    },
+    {
+      channel: "twilio-sms",
+      available: twilioReady,
+      fn: () => sendTwilioSms(to, body),
+    },
+    // ── Infobip (fallback) ──────────────────────────────────────────────────
     {
       channel: "infobip-whatsapp",
       available: infobipReady && !!process.env.INFOBIP_WA_SENDER,
       fn: () => sendInfobipWhatsapp(to, body),
     },
     {
-      channel: "twilio-whatsapp",
-      available: twilioReady,
-      fn: () => sendTwilioWhatsapp(to, body),
-    },
-    // ── SMS (fallback only) ─────────────────────────────────────────────────
-    {
       channel: "infobip-sms",
       available: infobipReady,
       fn: () => sendInfobipSms(to, body),
-    },
-    {
-      channel: "twilio-sms",
-      available: twilioReady,
-      fn: () => sendTwilioSms(to, body),
     },
   ];
 
