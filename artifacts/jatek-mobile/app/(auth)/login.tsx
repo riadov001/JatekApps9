@@ -91,12 +91,12 @@ export default function LoginScreen() {
       return;
     }
     setError("");
-    sendOtp.mutate({ data: { phone: fullPhone, channel: "whatsapp" } as any }, {
+    sendOtp.mutate({ data: { phone: fullPhone, channel: "sms" } as any }, {
       onSuccess: (res) => {
         if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.push({
           pathname: "/(auth)/otp",
-          params: { phone: fullPhone, demoOtp: (res as any).demoOtp ?? "", channel: "whatsapp" },
+          params: { phone: fullPhone, demoOtp: (res as any).demoOtp ?? "", channel: "sms" },
         });
       },
       onError: (err: any) => {
@@ -247,11 +247,11 @@ export default function LoginScreen() {
             </View>
           ) : (
           <>
-          {/* WhatsApp badge */}
-          <View style={[styles.whatsappBadge, { backgroundColor: "#25D36618" }]}>
-            <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
-            <Text style={[styles.whatsappBadgeText, { color: "#1A9E50" }]}>
-              Code de vérification envoyé par WhatsApp
+          {/* SMS badge */}
+          <View style={[styles.whatsappBadge, { backgroundColor: colors.primary + "18" }]}>
+            <Ionicons name="chatbubble-ellipses-outline" size={16} color={colors.primary} />
+            <Text style={[styles.whatsappBadgeText, { color: colors.primary }]}>
+              {t("login_hint_sms")}
             </Text>
           </View>
 
@@ -283,7 +283,7 @@ export default function LoginScreen() {
           {error ? <Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text> : null}
 
           <TouchableOpacity
-            style={[styles.btn, { backgroundColor: "#25D366", opacity: sendOtp.isPending ? 0.7 : 1 }]}
+            style={[styles.btn, { backgroundColor: colors.primary, opacity: sendOtp.isPending ? 0.7 : 1 }]}
             onPress={handleContinue}
             disabled={sendOtp.isPending}
             activeOpacity={0.8}
@@ -292,8 +292,8 @@ export default function LoginScreen() {
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <>
-                <Ionicons name="logo-whatsapp" size={20} color="#fff" />
-                <Text style={styles.btnText}>{t("login_send_whatsapp")}</Text>
+                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#fff" />
+                <Text style={styles.btnText}>{t("login_send_sms")}</Text>
                 <Ionicons name="arrow-forward" size={20} color="#fff" />
               </>
             )}
@@ -304,7 +304,7 @@ export default function LoginScreen() {
 
         {mode === "phone" && (
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-            {t("login_hint_whatsapp")}
+            {t("login_hint_sms")}
           </Text>
         )}
       </ScrollView>
