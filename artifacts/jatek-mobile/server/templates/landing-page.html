@@ -384,10 +384,10 @@
               <div class="step-number">2</div>
               <h2 class="step-title">Scan QR Code</h2>
             </div>
-            <p class="step-description">Use your phone's camera or Expo Go</p>
+            <p class="step-description">Scannez avec l'app Jatek (dev client)</p>
             <div class="qr-code" id="qr-code"></div>
-            <a href="exps://EXPS_URL_PLACEHOLDER" class="open-button"
-              >Open in Expo Go</a
+            <a href="exp+jatek://expo-development-client/?url=https%3A%2F%2FEXPS_URL_PLACEHOLDER%2F" class="open-button"
+              >Ouvrir dans Jatek</a
             >
           </div>
         </div>
@@ -406,7 +406,7 @@
           /iPhone|iPad|iPod/i.test(ua) ||
           (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-        const deepLink = "exps://EXPS_URL_PLACEHOLDER";
+        const deepLink = "exp+jatek://expo-development-client/?url=https%3A%2F%2FEXPS_URL_PLACEHOLDER%2F";
 
         // Adjust store buttons based on platform
         const appStoreBtn = document.getElementById("app-store-btn");

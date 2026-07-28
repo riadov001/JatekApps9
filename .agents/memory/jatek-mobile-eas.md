@@ -17,4 +17,10 @@ description: EAS build quirks for the jatek-mobile pnpm monorepo workspace — c
 
 **Why:** Learned during a debugging session where EAS builds failed due to TypeScript config, pnpm catalog syntax errors, and the dev server showed connection errors from the `--go` flag forcing incompatible runtime.
 
-**How to apply:** Any time you touch `app.config.*`, `eas.json`, or the `dev` script in `artifacts/jatek-mobile/package.json`.
+6. **`serve.js` needs `BASE_PATH=/mobile`** — The production serve script must set `BASE_PATH=/mobile` so routing for `/mobile/` requests works. Without it, every request falls through to `serveStaticFile` and returns 500. The `serve` script in `package.json` should be `BASE_PATH=/mobile node server/serve.js`.
+
+7. **EAS manifest proxy** — When `static-build/` is absent, `serve.js` proxies manifest requests to `https://u.expo.dev/PROJECT_ID`. The dev client sends `expo-platform`, `expo-runtime-version`, `expo-channel-name` headers which are forwarded. A 400 from EAS in curl tests is expected (missing headers); the real app sends them correctly.
+
+8. **Landing page QR deep-link format** — The QR code uses `exp+jatek://expo-development-client/?url=https%3A%2F%2FHOST%2Fmobile%2F` (not `exps://HOST`). The `expsUrl` in `serveLandingPage` must include `basePath` so the URL is `ma.jatek.app/mobile` not just `ma.jatek.app`.
+
+**How to apply:** Any time you touch `app.config.*`, `eas.json`, `serve.js`, or the `dev`/`serve` scripts in `artifacts/jatek-mobile/package.json`.

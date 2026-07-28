@@ -17,6 +17,10 @@ const STATIC_ROOT = path.resolve(__dirname, "..", "static-build");
 const TEMPLATE_PATH = path.resolve(__dirname, "templates", "landing-page.html");
 const basePath = (process.env.BASE_PATH || "/").replace(/\/+$/, "");
 
+// EAS Update project ID — used as fallback manifest source when static-build/ is absent.
+const EAS_PROJECT_ID = process.env.EXPO_PUBLIC_PROJECT_ID || "24f32081-ec5b-4040-9694-24e08de7e7c7";
+const EAS_UPDATE_URL = `https://u.expo.dev/${EAS_PROJECT_ID}`;
+
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
@@ -45,26 +49,63 @@ function getAppName() {
   }
 }
 
-function serveManifest(platform, res) {
+async function proxyEasManifest(platform, incomingHeaders, res) {
+  try {
+    const headers = {
+      "expo-platform": platform,
+      "expo-channel-name": incomingHeaders["expo-channel-name"] || "production",
+      "accept": "multipart/mixed,application/expo+json,application/json",
+    };
+    // Forward runtime/SDK version headers if present
+    for (const h of ["expo-runtime-version", "expo-sdk-version", "expo-updates-environment", "expo-expect-signature"]) {
+      if (incomingHeaders[h]) headers[h] = incomingHeaders[h];
+    }
+
+    const easRes = await fetch(EAS_UPDATE_URL, { headers, signal: AbortSignal.timeout(10000) });
+
+    if (!easRes.ok) {
+      console.warn(`[serve] EAS manifest proxy failed: ${easRes.status}`);
+      res.writeHead(easRes.status, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: `EAS manifest error: ${easRes.status}` }));
+      return;
+    }
+
+    // Forward all EAS response headers except transfer-encoding
+    const resHeaders = { "cache-control": "no-store, no-cache, must-revalidate" };
+    easRes.headers.forEach((v, k) => {
+      if (k.toLowerCase() !== "transfer-encoding") resHeaders[k] = v;
+    });
+    const body = await easRes.arrayBuffer();
+    res.writeHead(easRes.status, resHeaders);
+    res.end(Buffer.from(body));
+    console.info(`[serve] EAS manifest proxied for ${platform}`);
+  } catch (err) {
+    console.error("[serve] EAS manifest proxy error:", err.message);
+    res.writeHead(502, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "EAS proxy timeout" }));
+  }
+}
+
+function serveManifest(platform, req, res) {
   const manifestPath = path.join(STATIC_ROOT, platform, "manifest.json");
 
-  if (!fs.existsSync(manifestPath)) {
-    res.writeHead(404, { "content-type": "application/json" });
-    res.end(
-      JSON.stringify({ error: `Manifest not found for platform: ${platform}` }),
-    );
+  // Local static-build exists → serve it directly
+  if (fs.existsSync(manifestPath)) {
+    const manifest = fs.readFileSync(manifestPath, "utf-8");
+    res.writeHead(200, {
+      "content-type": "application/json",
+      "expo-protocol-version": "1",
+      "expo-sfv-version": "0",
+      "cache-control": "no-store, no-cache, must-revalidate",
+      "pragma": "no-cache",
+    });
+    res.end(manifest);
     return;
   }
 
-  const manifest = fs.readFileSync(manifestPath, "utf-8");
-  res.writeHead(200, {
-    "content-type": "application/json",
-    "expo-protocol-version": "1",
-    "expo-sfv-version": "0",
-    "cache-control": "no-store, no-cache, must-revalidate",
-    "pragma": "no-cache",
-  });
-  res.end(manifest);
+  // No local build → proxy to EAS Update CDN
+  console.info(`[serve] No local manifest for ${platform}, proxying to EAS Update...`);
+  proxyEasManifest(platform, req.headers, res);
 }
 
 function serveLandingPage(req, res, landingPageTemplate, appName) {
@@ -72,7 +113,8 @@ function serveLandingPage(req, res, landingPageTemplate, appName) {
   const protocol = forwardedProto || "https";
   const host = req.headers["x-forwarded-host"] || req.headers["host"];
   const baseUrl = `${protocol}://${host}`;
-  const expsUrl = `${host}`;
+  // Include basePath so the QR deep-link points to /mobile/ not just /
+  const expsUrl = basePath ? `${host}${basePath}` : host;
 
   const html = landingPageTemplate
     .replace(/BASE_URL_PLACEHOLDER/g, baseUrl)
@@ -155,7 +197,7 @@ const server = http.createServer((req, res) => {
   if (pathname === "/" || pathname === "/manifest") {
     const platform = req.headers["expo-platform"];
     if (platform === "ios" || platform === "android") {
-      return serveManifest(platform, res);
+      return serveManifest(platform, req, res);
     }
 
     if (pathname === "/") {
